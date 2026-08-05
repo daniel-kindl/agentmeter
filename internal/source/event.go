@@ -15,4 +15,8 @@ type UsageEvent struct {
 	CacheCreationInputTokens int64     `json:"cache_creation_input_tokens"`
 	CacheReadInputTokens     int64     `json:"cache_read_input_tokens"`
 	DedupeKey                string    `json:"dedupe_key"`
+	MessageID                string    `json:"message_id"`
+	RequestID                string    `json:"request_id"`
+	Sidechain                bool      `json:"sidechain"`
+	RateClass                string    `json:"rate_class"`
 }

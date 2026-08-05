@@ -117,6 +117,70 @@ func TestInsertUsageEventsCountsDuplicatesWithinBatch(t *testing.T) {
 	}
 }
 
+func TestInsertUsageEventsReplacesLargerDuplicate(t *testing.T) {
+	t.Parallel()
+
+	store := openTestStore(t, ":memory:")
+	first := syntheticUsageEvent("message-001:request-001")
+	first.MessageID = "message-001"
+	first.RequestID = "request-001"
+	larger := first
+	larger.OutputTokens++
+
+	if _, err := store.InsertUsageEvents(context.Background(), []source.UsageEvent{first}); err != nil {
+		t.Fatalf("insert first event: %v", err)
+	}
+	result, err := store.InsertUsageEvents(context.Background(), []source.UsageEvent{larger})
+	if err != nil {
+		t.Fatalf("replace duplicate: %v", err)
+	}
+	if result != (InsertResult{Updated: 1}) {
+		t.Fatalf("result = %+v, want one update", result)
+	}
+
+	var output int64
+	if err := store.db.QueryRow("SELECT output_tokens FROM usage_events").Scan(&output); err != nil {
+		t.Fatalf("read replacement: %v", err)
+	}
+	if output != larger.OutputTokens {
+		t.Fatalf("output tokens = %d, want %d", output, larger.OutputTokens)
+	}
+}
+
+func TestInsertUsageEventsPrefersParentOverSidechainReplay(t *testing.T) {
+	t.Parallel()
+
+	store := openTestStore(t, ":memory:")
+	replay := syntheticUsageEvent("message-001:request-replay")
+	replay.MessageID = "message-001"
+	replay.RequestID = "request-replay"
+	replay.Sidechain = true
+	replay.CacheReadInputTokens = 50_000
+	parent := syntheticUsageEvent("message-001:request-parent")
+	parent.MessageID = "message-001"
+	parent.RequestID = "request-parent"
+
+	if _, err := store.InsertUsageEvents(context.Background(), []source.UsageEvent{replay}); err != nil {
+		t.Fatalf("insert replay: %v", err)
+	}
+	result, err := store.InsertUsageEvents(context.Background(), []source.UsageEvent{parent})
+	if err != nil {
+		t.Fatalf("replace replay: %v", err)
+	}
+	if result != (InsertResult{Updated: 1}) {
+		t.Fatalf("result = %+v, want one update", result)
+	}
+
+	var key string
+	var sidechain bool
+	if err := store.db.QueryRow("SELECT dedupe_key, sidechain FROM usage_events").Scan(&key, &sidechain); err != nil {
+		t.Fatalf("read parent: %v", err)
+	}
+	if key != parent.DedupeKey || sidechain {
+		t.Fatalf("stored key = %q, sidechain = %t; want parent", key, sidechain)
+	}
+}
+
 func TestInsertUsageEventsRejectsInvalidFieldsWithoutPartialWrite(t *testing.T) {
 	t.Parallel()
 

@@ -29,6 +29,10 @@ func TestUsageEventJSONFields(t *testing.T) {
 				CacheCreationInputTokens: 17,
 				CacheReadInputTokens:     41,
 				DedupeKey:                "session-001:event-007",
+				MessageID:                "message-007",
+				RequestID:                "request-007",
+				Sidechain:                true,
+				RateClass:                "fast",
 			},
 			want: map[string]any{
 				"timestamp":                   timestamp.Format(time.RFC3339),
@@ -40,6 +44,10 @@ func TestUsageEventJSONFields(t *testing.T) {
 				"cache_creation_input_tokens": float64(17),
 				"cache_read_input_tokens":     float64(41),
 				"dedupe_key":                  "session-001:event-007",
+				"message_id":                  "message-007",
+				"request_id":                  "request-007",
+				"sidechain":                   true,
+				"rate_class":                  "fast",
 			},
 		},
 		{
@@ -55,6 +63,10 @@ func TestUsageEventJSONFields(t *testing.T) {
 				"cache_creation_input_tokens": float64(0),
 				"cache_read_input_tokens":     float64(0),
 				"dedupe_key":                  "",
+				"message_id":                  "",
+				"request_id":                  "",
+				"sidechain":                   false,
+				"rate_class":                  "",
 			},
 		},
 	}

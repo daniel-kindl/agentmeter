@@ -7,5 +7,9 @@
   "output_tokens": 23,
   "cache_creation_input_tokens": 17,
   "cache_read_input_tokens": 41,
-  "dedupe_key": "session-001:event-007"
+  "dedupe_key": "session-001:event-007",
+  "message_id": "",
+  "request_id": "",
+  "sidechain": false,
+  "rate_class": ""
 }
