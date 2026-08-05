@@ -69,10 +69,13 @@ func Parse(
 		case lineUnparsed:
 			stats.UnparsedLines++
 		case lineUsage:
-			if err := emit(event); err != nil {
-				return stats, fmt.Errorf("emit Claude usage event at line %d: %w", stats.Lines, err)
+			events := append([]source.UsageEvent{event}, parseAdvisorEvents(line, event)...)
+			for _, candidate := range events {
+				if err := emit(candidate); err != nil {
+					return stats, fmt.Errorf("emit Claude usage event at line %d: %w", stats.Lines, err)
+				}
+				stats.Emitted++
 			}
-			stats.Emitted++
 		}
 	}
 
@@ -80,6 +83,48 @@ func Parse(
 		return stats, fmt.Errorf("scan Claude JSONL: %w", err)
 	}
 	return stats, nil
+}
+
+func parseAdvisorEvents(line []byte, base source.UsageEvent) []source.UsageEvent {
+	var value struct {
+		Message struct {
+			Usage struct {
+				Iterations []struct {
+					Type                     string `json:"type"`
+					Model                    string `json:"model"`
+					InputTokens              int64  `json:"input_tokens"`
+					OutputTokens             int64  `json:"output_tokens"`
+					CacheCreationInputTokens int64  `json:"cache_creation_input_tokens"`
+					CacheReadInputTokens     int64  `json:"cache_read_input_tokens"`
+				} `json:"iterations"`
+			} `json:"usage"`
+		} `json:"message"`
+	}
+	if json.Unmarshal(line, &value) != nil {
+		return nil
+	}
+	var events []source.UsageEvent
+	for index, iteration := range value.Message.Usage.Iterations {
+		if iteration.Type != "advisor_message" || strings.TrimSpace(iteration.Model) == "" ||
+			iteration.InputTokens < 0 || iteration.OutputTokens < 0 ||
+			iteration.CacheCreationInputTokens < 0 || iteration.CacheReadInputTokens < 0 {
+			continue
+		}
+		event := base
+		event.Model = iteration.Model
+		event.InputTokens = iteration.InputTokens
+		event.OutputTokens = iteration.OutputTokens
+		event.CacheCreationInputTokens = iteration.CacheCreationInputTokens
+		event.CacheReadInputTokens = iteration.CacheReadInputTokens
+		if event.MessageID != "" {
+			event.MessageID = fmt.Sprintf("%s:advisor:%d", event.MessageID, index)
+			event.DedupeKey = event.MessageID + ":" + event.RequestID
+		} else {
+			event.DedupeKey = fmt.Sprintf("%s:advisor:%d", event.DedupeKey, index)
+		}
+		events = append(events, event)
+	}
+	return events
 }
 
 type lineClassification uint8
@@ -125,19 +170,16 @@ func parseLine(line []byte, metadata FileMetadata, eventIndex int64) (source.Usa
 		return source.UsageEvent{}, lineUnparsed
 	}
 
-	switch record.Type {
-	case "":
+	if len(record.Message) > 0 {
 		return parseAssistant(record, metadata, eventIndex)
-	case "assistant":
-		return parseAssistant(record, metadata, eventIndex)
-	case "progress":
-		return parseProgress(record, metadata, eventIndex)
-	default:
-		if containsTokenUsage(line) {
-			return source.UsageEvent{}, lineUnparsed
-		}
-		return source.UsageEvent{}, lineIgnored
 	}
+	if len(record.Data) > 0 {
+		return parseProgress(record, metadata, eventIndex)
+	}
+	if containsTokenUsage(line) {
+		return source.UsageEvent{}, lineUnparsed
+	}
+	return source.UsageEvent{}, lineIgnored
 }
 
 func parseProgress(outer envelope, metadata FileMetadata, eventIndex int64) (source.UsageEvent, lineClassification) {
@@ -148,13 +190,6 @@ func parseProgress(outer envelope, metadata FileMetadata, eventIndex int64) (sou
 		}
 		return source.UsageEvent{}, lineIgnored
 	}
-	if data.Type != "agent_progress" {
-		if containsTokenUsage(outer.Data) {
-			return source.UsageEvent{}, lineUnparsed
-		}
-		return source.UsageEvent{}, lineIgnored
-	}
-
 	var nested envelope
 	if len(data.Message) == 0 || json.Unmarshal(data.Message, &nested) != nil {
 		if containsTokenUsage(outer.Data) {
@@ -162,13 +197,6 @@ func parseProgress(outer envelope, metadata FileMetadata, eventIndex int64) (sou
 		}
 		return source.UsageEvent{}, lineIgnored
 	}
-	if nested.Type != "assistant" {
-		if containsTokenUsage(data.Message) {
-			return source.UsageEvent{}, lineUnparsed
-		}
-		return source.UsageEvent{}, lineIgnored
-	}
-
 	if nested.Timestamp == "" {
 		nested.Timestamp = outer.Timestamp
 	}
@@ -176,7 +204,11 @@ func parseProgress(outer envelope, metadata FileMetadata, eventIndex int64) (sou
 		nested.SessionID = outer.SessionID
 	}
 	nested.Sidechain = nested.Sidechain || outer.Sidechain
-	return parseAssistant(nested, metadata, eventIndex)
+	event, classification := parseAssistant(nested, metadata, eventIndex)
+	if classification == lineIgnored && containsTokenUsage(outer.Data) {
+		return source.UsageEvent{}, lineUnparsed
+	}
+	return event, classification
 }
 
 func parseAssistant(record envelope, metadata FileMetadata, eventIndex int64) (source.UsageEvent, lineClassification) {

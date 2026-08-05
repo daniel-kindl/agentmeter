@@ -36,7 +36,7 @@ func TestParseFixture(t *testing.T) {
 		t.Fatalf("parse fixture: %v", err)
 	}
 
-	wantStats := claude.Stats{Lines: 4, Emitted: 3, Ignored: 1}
+	wantStats := claude.Stats{Lines: 4, Emitted: 4, Ignored: 1}
 	if stats != wantStats {
 		t.Fatalf("stats = %+v, want %+v", stats, wantStats)
 	}
@@ -54,6 +54,19 @@ func TestParseFixture(t *testing.T) {
 			MessageID:                "message-direct",
 			RequestID:                "request-direct",
 			RateClass:                "fast",
+		},
+		{
+			Timestamp:            time.Date(2026, time.January, 2, 8, 4, 5, 0, time.UTC),
+			Source:               "claude",
+			SessionID:            "session-direct",
+			Model:                "claude-advisor-synthetic",
+			InputTokens:          43,
+			OutputTokens:         47,
+			CacheReadInputTokens: 53,
+			DedupeKey:            "message-direct:advisor:1:request-direct",
+			MessageID:            "message-direct:advisor:1",
+			RequestID:            "request-direct",
+			RateClass:            "fast",
 		},
 		{
 			Timestamp:    time.Date(2026, time.January, 2, 3, 4, 7, 0, time.UTC),

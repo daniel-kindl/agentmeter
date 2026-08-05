@@ -26,14 +26,14 @@ func TestScanPersistsBothSourcesIdempotently(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first scan: %v", err)
 	}
-	if first.Inserted != 6 || first.Claude.Emitted != 3 || first.Codex.Emitted != 3 {
+	if first.Inserted != 7 || first.Claude.Emitted != 4 || first.Codex.Emitted != 3 {
 		t.Fatalf("first result = %+v", first)
 	}
 	second, err := scanner.Scan(context.Background(), database, files)
 	if err != nil {
 		t.Fatalf("second scan: %v", err)
 	}
-	if second.Inserted != 0 || second.Duplicates != 6 {
+	if second.Inserted != 0 || second.Duplicates != 7 {
 		t.Fatalf("second result = %+v", second)
 	}
 }
