@@ -62,7 +62,7 @@ func Parse(
 			continue
 		}
 
-		event, classification := parseLine(line, metadata)
+		event, classification := parseLine(line, metadata, stats.Lines)
 		switch classification {
 		case lineIgnored:
 			stats.Ignored++
@@ -93,8 +93,9 @@ const (
 type envelope struct {
 	Type      string          `json:"type"`
 	Timestamp string          `json:"timestamp"`
-	SessionID string          `json:"sessionId"`
-	RequestID string          `json:"requestId"`
+	SessionID *string         `json:"sessionId"`
+	RequestID *string         `json:"requestId"`
+	Sidechain bool            `json:"isSidechain"`
 	Message   json.RawMessage `json:"message"`
 	Data      json.RawMessage `json:"data"`
 }
@@ -105,8 +106,8 @@ type progressData struct {
 }
 
 type assistantMessage struct {
-	ID    string          `json:"id"`
-	Model string          `json:"model"`
+	ID    *string         `json:"id"`
+	Model *string         `json:"model"`
 	Usage json.RawMessage `json:"usage"`
 }
 
@@ -115,19 +116,22 @@ type tokenUsage struct {
 	OutputTokens             *int64 `json:"output_tokens"`
 	CacheCreationInputTokens *int64 `json:"cache_creation_input_tokens"`
 	CacheReadInputTokens     *int64 `json:"cache_read_input_tokens"`
+	Speed                    string `json:"speed"`
 }
 
-func parseLine(line []byte, metadata FileMetadata) (source.UsageEvent, lineClassification) {
+func parseLine(line []byte, metadata FileMetadata, eventIndex int64) (source.UsageEvent, lineClassification) {
 	var record envelope
 	if err := json.Unmarshal(line, &record); err != nil {
 		return source.UsageEvent{}, lineUnparsed
 	}
 
 	switch record.Type {
+	case "":
+		return parseAssistant(record, metadata, eventIndex)
 	case "assistant":
-		return parseAssistant(record, metadata)
+		return parseAssistant(record, metadata, eventIndex)
 	case "progress":
-		return parseProgress(record, metadata)
+		return parseProgress(record, metadata, eventIndex)
 	default:
 		if containsTokenUsage(line) {
 			return source.UsageEvent{}, lineUnparsed
@@ -136,7 +140,7 @@ func parseLine(line []byte, metadata FileMetadata) (source.UsageEvent, lineClass
 	}
 }
 
-func parseProgress(outer envelope, metadata FileMetadata) (source.UsageEvent, lineClassification) {
+func parseProgress(outer envelope, metadata FileMetadata, eventIndex int64) (source.UsageEvent, lineClassification) {
 	var data progressData
 	if len(outer.Data) == 0 || json.Unmarshal(outer.Data, &data) != nil {
 		if containsTokenUsage(outer.Data) {
@@ -168,13 +172,14 @@ func parseProgress(outer envelope, metadata FileMetadata) (source.UsageEvent, li
 	if nested.Timestamp == "" {
 		nested.Timestamp = outer.Timestamp
 	}
-	if nested.SessionID == "" {
+	if nested.SessionID == nil {
 		nested.SessionID = outer.SessionID
 	}
-	return parseAssistant(nested, metadata)
+	nested.Sidechain = nested.Sidechain || outer.Sidechain
+	return parseAssistant(nested, metadata, eventIndex)
 }
 
-func parseAssistant(record envelope, metadata FileMetadata) (source.UsageEvent, lineClassification) {
+func parseAssistant(record envelope, metadata FileMetadata, eventIndex int64) (source.UsageEvent, lineClassification) {
 	if len(record.Message) == 0 {
 		return source.UsageEvent{}, lineIgnored
 	}
@@ -196,30 +201,57 @@ func parseAssistant(record envelope, metadata FileMetadata) (source.UsageEvent, 
 	}
 
 	timestamp, err := time.Parse(time.RFC3339Nano, record.Timestamp)
-	if err != nil || strings.TrimSpace(message.ID) == "" || strings.TrimSpace(record.RequestID) == "" ||
-		strings.TrimSpace(message.Model) == "" || usage.InputTokens == nil || usage.OutputTokens == nil {
+	if err != nil || explicitlyBlank(message.ID) || explicitlyBlank(record.RequestID) ||
+		explicitlyBlank(message.Model) || usage.InputTokens == nil || usage.OutputTokens == nil {
 		return source.UsageEvent{}, lineUnparsed
 	}
 
-	sessionID := record.SessionID
-	if strings.TrimSpace(sessionID) == "" {
+	sessionID := ""
+	if record.SessionID != nil {
+		sessionID = *record.SessionID
+	} else {
 		sessionID = metadata.SessionID
 	}
 	if strings.TrimSpace(sessionID) == "" || hasNegativeTokenCount(usage) {
 		return source.UsageEvent{}, lineUnparsed
+	}
+	messageID := optionalString(message.ID)
+	requestID := optionalString(record.RequestID)
+	model := optionalString(message.Model)
+	if model == "" {
+		model = "unknown"
+	}
+	dedupeKey := messageID + ":" + requestID
+	if messageID == "" {
+		dedupeKey = fmt.Sprintf("%s:%d", sessionID, eventIndex)
 	}
 
 	return source.UsageEvent{
 		Timestamp:                timestamp.UTC(),
 		Source:                   "claude",
 		SessionID:                sessionID,
-		Model:                    message.Model,
+		Model:                    model,
 		InputTokens:              *usage.InputTokens,
 		OutputTokens:             *usage.OutputTokens,
 		CacheCreationInputTokens: optionalTokenCount(usage.CacheCreationInputTokens),
 		CacheReadInputTokens:     optionalTokenCount(usage.CacheReadInputTokens),
-		DedupeKey:                message.ID + ":" + record.RequestID,
+		DedupeKey:                dedupeKey,
+		MessageID:                messageID,
+		RequestID:                requestID,
+		Sidechain:                record.Sidechain,
+		RateClass:                usage.Speed,
 	}, lineUsage
+}
+
+func explicitlyBlank(value *string) bool {
+	return value != nil && strings.TrimSpace(*value) == ""
+}
+
+func optionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func optionalTokenCount(value *int64) int64 {

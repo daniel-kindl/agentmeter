@@ -51,6 +51,9 @@ func TestParseFixture(t *testing.T) {
 			CacheCreationInputTokens: 17,
 			CacheReadInputTokens:     41,
 			DedupeKey:                "message-direct:request-direct",
+			MessageID:                "message-direct",
+			RequestID:                "request-direct",
+			RateClass:                "fast",
 		},
 		{
 			Timestamp:    time.Date(2026, time.January, 2, 3, 4, 7, 0, time.UTC),
@@ -60,6 +63,8 @@ func TestParseFixture(t *testing.T) {
 			InputTokens:  5,
 			OutputTokens: 7,
 			DedupeKey:    "message-fallback:request-fallback",
+			MessageID:    "message-fallback",
+			RequestID:    "request-fallback",
 		},
 		{
 			Timestamp:            time.Date(2026, time.January, 2, 3, 4, 9, 0, time.UTC),
@@ -70,10 +75,33 @@ func TestParseFixture(t *testing.T) {
 			OutputTokens:         13,
 			CacheReadInputTokens: 19,
 			DedupeKey:            "message-agent:request-agent",
+			MessageID:            "message-agent",
+			RequestID:            "request-agent",
+			Sidechain:            true,
 		},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("events mismatch\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestParseAcceptsAbsentClaudeIdentityAndModel(t *testing.T) {
+	t.Parallel()
+
+	line := `{"type":"assistant","timestamp":"2026-01-02T03:04:05Z","message":{"usage":{"input_tokens":1,"output_tokens":2}}}`
+	var got source.UsageEvent
+	stats, err := claude.Parse(context.Background(), strings.NewReader(line), claude.FileMetadata{SessionID: "session"}, func(event source.UsageEvent) error {
+		got = event
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("parse line: %v", err)
+	}
+	if stats != (claude.Stats{Lines: 1, Emitted: 1}) {
+		t.Fatalf("stats = %+v, want one emitted line", stats)
+	}
+	if got.Model != "unknown" || got.DedupeKey != "session:1" {
+		t.Fatalf("event = %+v, want unknown model and event-index fallback", got)
 	}
 }
 
