@@ -61,7 +61,7 @@ look plausible and are wrong, which is worse than a crash.
 | Counter reset | N/A | Clamp negative diffs to zero |
 | Model attribution | On the record | Separate `turn_context` event — parser state |
 | Ordering | File order sufficient | **Strict file order required** |
-| Dedupe key | `messageID:requestID` | `sessionID:eventIndex` |
+| Dedupe key | `messageID:requestID`, with `sessionID:eventIndex` fallback | `sessionID:eventIndex` |
 
 Additional rules:
 
@@ -69,6 +69,12 @@ Additional rules:
   buffer, one JSON value per line, no whole-file reads.
 - **Count unparsed lines; never swallow them.** Surface the count. Silent skipping turns a
   format change into "I used the tool less this month."
+- **The current ccusage implementations are the aggregation oracle.** When recorded formats
+  and local assumptions disagree, preserve streaming and privacy while matching the oracle.
+- Claude records with absent identifiers are accepted using the fallback key; identifiers
+  explicitly present but blank remain invalid. An absent model is normalized as `unknown`.
+- For replayed Claude usage, prefer a non-sidechain record, then the candidate with the larger
+  combined token total. This replacement is persistence behavior, not parser buffering.
 - **When the same relative path exists in both `sessions/` and `archived_sessions/`**, the
   active copy wins.
 - **Codex session logs before September 2025 contain no token data at all.** Absence is

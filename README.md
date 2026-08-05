@@ -1,8 +1,8 @@
 # agentmeter
 
-Agentmeter is a local-first usage meter for Claude Code and Codex sessions. This repository
-currently contains a streaming Claude Code usage parser and the storage foundation. Codex
-parsing, reporting queries, API behavior, and the dashboard are not implemented yet.
+Agentmeter is a local-first usage meter for Claude Code and Codex sessions. It streams local
+session logs into SQLite and serves a private browser dashboard with token and estimated-cost
+history.
 
 ## Requirements
 
@@ -19,8 +19,21 @@ make build
 make cross
 ```
 
-The CLI surface is reserved for `scan`, `serve`, and `version`; `scan` is not wired to the
-Claude parser yet. See [CONTRIBUTING.md](CONTRIBUTING.md) before making changes.
+Scan the standard Claude Code and Codex data directories, then start the dashboard:
+
+```sh
+agentmeter scan
+agentmeter serve
+```
+
+The database defaults to the `agentmeter/agentmeter.db` file under the operating system's
+user configuration directory. Use `--db PATH` with both commands to select another database,
+`scan --json` for machine-readable statistics, and `serve --addr HOST:PORT` to change the
+loopback listener.
+
+Costs come from a bundled pricing snapshot. Tokens from an unknown model remain visible and
+the dashboard marks the cost total incomplete rather than treating the model as free. See
+[CONTRIBUTING.md](CONTRIBUTING.md) before making changes.
 
 ## Privacy
 
