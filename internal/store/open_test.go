@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 )
@@ -91,7 +92,7 @@ func TestOpenCurrentSchemaWithoutChangingContents(t *testing.T) {
 	if _, err := db.Exec(Schema); err != nil {
 		t.Fatalf("create schema: %v", err)
 	}
-	if _, err := db.Exec("PRAGMA user_version = 1"); err != nil {
+	if _, err := db.Exec("PRAGMA user_version = " + fmt.Sprint(SchemaVersion)); err != nil {
 		t.Fatalf("set schema version: %v", err)
 	}
 	insertSyntheticRow(t, db)
@@ -114,12 +115,53 @@ func TestOpenCurrentSchemaWithoutChangingContents(t *testing.T) {
 	}
 }
 
+func TestOpenMigratesVersionOne(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "agentmeter.db")
+	db := openRawDB(t, path)
+	const versionOneSchema = `CREATE TABLE usage_events (
+dedupe_key TEXT PRIMARY KEY,
+timestamp TEXT NOT NULL,
+source TEXT NOT NULL,
+session_id TEXT NOT NULL,
+model TEXT NOT NULL,
+input_tokens INTEGER NOT NULL,
+output_tokens INTEGER NOT NULL,
+cache_creation_input_tokens INTEGER NOT NULL,
+cache_read_input_tokens INTEGER NOT NULL
+); PRAGMA user_version = 1;`
+	if _, err := db.Exec(versionOneSchema); err != nil {
+		t.Fatalf("create version one schema: %v", err)
+	}
+	insertSyntheticRow(t, db)
+	if err := db.Close(); err != nil {
+		t.Fatalf("close version one database: %v", err)
+	}
+
+	store, err := Open(context.Background(), path)
+	if err != nil {
+		t.Fatalf("migrate version one database: %v", err)
+	}
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("close migrated store: %v", err)
+		}
+	}()
+	if got := schemaVersion(t, store.db); got != SchemaVersion {
+		t.Fatalf("schema version = %d, want %d", got, SchemaVersion)
+	}
+	if got := usageEventCount(t, store.db); got != 1 {
+		t.Fatalf("usage event count = %d, want 1", got)
+	}
+}
+
 func TestOpenRejectsFutureSchema(t *testing.T) {
 	t.Parallel()
 
 	path := filepath.Join(t.TempDir(), "agentmeter.db")
 	db := openRawDB(t, path)
-	if _, err := db.Exec("PRAGMA user_version = 2"); err != nil {
+	if _, err := db.Exec("PRAGMA user_version = " + fmt.Sprint(SchemaVersion+1)); err != nil {
 		t.Fatalf("set future schema version: %v", err)
 	}
 	if err := db.Close(); err != nil {

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 // InsertResult summarizes the outcome of inserting one batch of usage events.
 type InsertResult struct {
 	Inserted   int
+	Updated    int
 	Duplicates int
 }
 
@@ -38,33 +40,47 @@ func (s *Store) InsertUsageEvents(ctx context.Context, events []source.UsageEven
 
 	const insert = `INSERT INTO usage_events (
 dedupe_key, timestamp, source, session_id, model, input_tokens, output_tokens,
-cache_creation_input_tokens, cache_read_input_tokens
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(dedupe_key) DO NOTHING`
+cache_creation_input_tokens, cache_read_input_tokens, message_id, request_id, sidechain, rate_class
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), ?, ?)`
+	const findExisting = `SELECT dedupe_key, input_tokens, output_tokens,
+cache_creation_input_tokens, cache_read_input_tokens, sidechain
+FROM usage_events
+WHERE dedupe_key = ?
+   OR (? <> '' AND message_id = ? AND (? = 1 OR sidechain = 1))
+ORDER BY CASE WHEN dedupe_key = ? THEN 0 ELSE 1 END
+LIMIT 1`
+	const update = `UPDATE usage_events SET
+dedupe_key = ?, timestamp = ?, source = ?, session_id = ?, model = ?,
+input_tokens = ?, output_tokens = ?, cache_creation_input_tokens = ?,
+cache_read_input_tokens = ?, message_id = NULLIF(?, ''), request_id = NULLIF(?, ''),
+sidechain = ?, rate_class = ?
+WHERE dedupe_key = ?`
 	for index, event := range events {
-		execResult, err := tx.ExecContext(ctx, insert,
-			event.DedupeKey,
-			event.Timestamp.UTC().Format(time.RFC3339Nano),
-			event.Source,
-			event.SessionID,
-			event.Model,
-			event.InputTokens,
-			event.OutputTokens,
-			event.CacheCreationInputTokens,
-			event.CacheReadInputTokens,
-		)
-		if err != nil {
-			return InsertResult{}, fmt.Errorf("insert usage event %d: %w", index, err)
+		var existing struct {
+			key                                     string
+			input, output, cacheCreation, cacheRead int64
+			sidechain                               bool
 		}
-
-		rows, err := execResult.RowsAffected()
-		if err != nil {
-			return InsertResult{}, fmt.Errorf("read usage event %d insert result: %w", index, err)
-		}
-		if rows == 0 {
-			result.Duplicates++
-		} else {
+		err := tx.QueryRowContext(ctx, findExisting,
+			event.DedupeKey, event.MessageID, event.MessageID, event.Sidechain, event.DedupeKey,
+		).Scan(&existing.key, &existing.input, &existing.output, &existing.cacheCreation, &existing.cacheRead, &existing.sidechain)
+		switch {
+		case err == sql.ErrNoRows:
+			if _, err := execUsageEvent(ctx, tx, insert, event); err != nil {
+				return InsertResult{}, fmt.Errorf("insert usage event %d: %w", index, err)
+			}
 			result.Inserted++
+		case err != nil:
+			return InsertResult{}, fmt.Errorf("find usage event %d duplicate: %w", index, err)
+		case shouldReplace(event, existing.input, existing.output, existing.cacheCreation, existing.cacheRead, existing.sidechain):
+			args := usageEventArgs(event)
+			args = append(args, existing.key)
+			if _, err := tx.ExecContext(ctx, update, args...); err != nil {
+				return InsertResult{}, fmt.Errorf("update usage event %d: %w", index, err)
+			}
+			result.Updated++
+		default:
+			result.Duplicates++
 		}
 	}
 
@@ -72,6 +88,37 @@ ON CONFLICT(dedupe_key) DO NOTHING`
 		return InsertResult{}, fmt.Errorf("commit usage event batch: %w", err)
 	}
 	return result, nil
+}
+
+func execUsageEvent(ctx context.Context, tx *sql.Tx, query string, event source.UsageEvent) (sql.Result, error) {
+	return tx.ExecContext(ctx, query, usageEventArgs(event)...)
+}
+
+func usageEventArgs(event source.UsageEvent) []any {
+	return []any{
+		event.DedupeKey,
+		event.Timestamp.UTC().Format(time.RFC3339Nano),
+		event.Source,
+		event.SessionID,
+		event.Model,
+		event.InputTokens,
+		event.OutputTokens,
+		event.CacheCreationInputTokens,
+		event.CacheReadInputTokens,
+		event.MessageID,
+		event.RequestID,
+		event.Sidechain,
+		event.RateClass,
+	}
+}
+
+func shouldReplace(event source.UsageEvent, input, output, cacheCreation, cacheRead int64, sidechain bool) bool {
+	if event.Sidechain != sidechain {
+		return sidechain
+	}
+	candidateTotal := event.InputTokens + event.OutputTokens + event.CacheCreationInputTokens + event.CacheReadInputTokens
+	existingTotal := input + output + cacheCreation + cacheRead
+	return candidateTotal > existingTotal
 }
 
 func validateUsageEvent(event source.UsageEvent) error {

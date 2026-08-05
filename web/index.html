@@ -7,11 +7,43 @@
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
+    <header>
+      <div>
+        <p class="eyebrow">LOCAL USAGE METER</p>
+        <h1>agentmeter</h1>
+      </div>
+      <nav aria-label="Usage range">
+        <button data-range="7d">7 days</button>
+        <button data-range="30d" class="active">30 days</button>
+        <button data-range="all">All time</button>
+      </nav>
+    </header>
     <main>
-      <h1>agentmeter</h1>
-      <p>The local usage dashboard is not implemented yet.</p>
+      <p id="status" role="status">Loading local usage…</p>
+      <section id="dashboard" hidden>
+        <div class="cards" aria-label="Usage totals">
+          <article><span>Input</span><strong id="input-total">—</strong></article>
+          <article><span>Output</span><strong id="output-total">—</strong></article>
+          <article><span>Cache read</span><strong id="cache-read-total">—</strong></article>
+          <article><span>Estimated cost</span><strong id="cost-total">—</strong></article>
+        </div>
+        <p id="pricing-warning" class="warning" hidden></p>
+        <section class="panel chart-panel">
+          <div class="panel-heading"><div><p class="eyebrow">DAILY TREND</p><h2>Tokens over time</h2></div><span id="timezone"></span></div>
+          <svg id="chart" viewBox="0 0 900 280" role="img" aria-label="Daily token usage chart"></svg>
+        </section>
+        <div class="tables">
+          <section class="panel">
+            <div class="panel-heading"><div><p class="eyebrow">SOURCES</p><h2>By agent</h2></div></div>
+            <table><thead><tr><th>Source</th><th>Tokens</th><th>Cost</th></tr></thead><tbody id="source-rows"></tbody></table>
+          </section>
+          <section class="panel">
+            <div class="panel-heading"><div><p class="eyebrow">MODELS</p><h2>By model</h2></div></div>
+            <table><thead><tr><th>Model</th><th>Tokens</th><th>Cost</th></tr></thead><tbody id="model-rows"></tbody></table>
+          </section>
+        </div>
+      </section>
     </main>
     <script src="/app.js"></script>
   </body>
 </html>
-

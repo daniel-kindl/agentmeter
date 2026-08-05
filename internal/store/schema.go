@@ -3,7 +3,7 @@ package store
 import _ "embed"
 
 // SchemaVersion is the newest SQLite schema version understood by this binary.
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 // Schema is the SQL used to initialize an agentmeter database.
 //
