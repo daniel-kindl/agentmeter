@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/daniel-kindl/agentmeter/internal/discovery"
 )
 
 func TestRunCommands(t *testing.T) {
@@ -20,10 +22,9 @@ func TestRunCommands(t *testing.T) {
 		wantStderr string
 	}{
 		{name: "version", args: []string{"version"}, wantCode: 0, wantStdout: "test-version\n"},
-		{name: "scan", args: []string{"scan"}, wantCode: 0, wantStdout: "scan is not implemented\n"},
 		{name: "missing", wantCode: 2, wantStderr: usageText},
 		{name: "unknown", args: []string{"other"}, wantCode: 2, wantStderr: `unknown command "other"`},
-		{name: "unexpected argument", args: []string{"scan", "extra"}, wantCode: 2, wantStderr: `unexpected argument "extra"`},
+		{name: "unexpected argument", args: []string{"version", "extra"}, wantCode: 2, wantStderr: `unexpected argument "extra"`},
 	}
 
 	for _, tt := range tests {
@@ -54,6 +55,25 @@ func TestRunCommands(t *testing.T) {
 	}
 }
 
+func TestRunScan(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	app := application{
+		stdout:        &stdout,
+		stderr:        &stderr,
+		version:       "test-version",
+		discoverFiles: func() ([]discovery.File, error) { return nil, nil },
+	}
+	if got := app.run([]string{"scan", "--db", ":memory:", "--json"}); got != 0 {
+		t.Fatalf("exit code = %d, stderr = %q", got, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"inserted":0`) {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
 func TestRunServe(t *testing.T) {
 	t.Parallel()
 
@@ -72,7 +92,7 @@ func TestRunServe(t *testing.T) {
 		},
 	}
 
-	if got := app.run([]string{"serve"}); got != 0 {
+	if got := app.run([]string{"serve", "--db", ":memory:"}); got != 0 {
 		t.Fatalf("exit code = %d, want 0; stderr = %q", got, stderr.String())
 	}
 	if gotAddress != serveAddress {
@@ -102,7 +122,7 @@ func TestRunServeError(t *testing.T) {
 		},
 	}
 
-	if got := app.run([]string{"serve"}); got != 1 {
+	if got := app.run([]string{"serve", "--db", ":memory:"}); got != 1 {
 		t.Fatalf("exit code = %d, want 1", got)
 	}
 	if !strings.Contains(stderr.String(), "synthetic listen failure") {
