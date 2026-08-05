@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-01-02T03:04:05Z",
+  "source": "synthetic",
+  "session_id": "session-001",
+  "model": "example-model",
+  "input_tokens": 101,
+  "output_tokens": 23,
+  "cache_creation_input_tokens": 17,
+  "cache_read_input_tokens": 41,
+  "dedupe_key": "session-001:event-007"
+}
