@@ -10,6 +10,17 @@ permissions:
   contents: read
 
 jobs:
+  branch-flow:
+    name: Branch flow
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate pull request branches
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: .github/scripts/validate-branch-flow.sh "$BASE_BRANCH" "$HEAD_BRANCH"
+
   commits:
     name: Conventional commits
     runs-on: ubuntu-latest
