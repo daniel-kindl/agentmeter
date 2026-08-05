@@ -9,9 +9,8 @@ if [ ${#header} -gt 72 ]; then
     exit 1
 fi
 
-pattern='^(feat|fix|perf|refactor)(\([a-z0-9][a-z0-9/-]*\))!?\: [a-z0-9].*[^.]$|^(docs|test|build|ci|chore|revert)(\([a-z0-9][a-z0-9/-]*\))!?\: [a-z0-9].*[^.]$'
+pattern='^(feat|fix|perf|refactor)(\([a-z0-9][a-z0-9/-]*\))!?\: [a-z0-9].*[^.]$|^(docs|test|build|ci|chore|revert)(\([a-z0-9][a-z0-9/-]*\))?!?\: [a-z0-9].*[^.]$'
 if ! printf '%s\n' "$header" | grep -Eq "$pattern"; then
     echo "invalid Conventional Commit header: $header" >&2
     exit 1
 fi
-
