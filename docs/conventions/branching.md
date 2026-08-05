@@ -3,6 +3,9 @@
 Two long-lived branches, short-lived work branches. Same model across projects — learn it
 once.
 
+`dev` is the repository's default branch so new work and pull requests start from the
+integration line. `main` is reserved for tested release promotions.
+
 ```
 main   ──●────────────────●──────────────▶   released, tagged, always deployable
           ╲              ╱
@@ -37,6 +40,15 @@ docs/adr-storage-schema
 
 Cut from `dev`. Merge back into `dev`. Delete after merge.
 
+```sh
+git switch dev
+git pull --ff-only origin dev
+git switch -c feat/short-description
+```
+
+CI rejects work branches that target `main`, unrecognized work-branch names that target
+`dev`, and release promotions to `main` from anything other than `dev` or Release Please.
+
 ## Merge strategy
 
 | Merge | Strategy | Why |
@@ -53,8 +65,9 @@ release-please would compute the wrong version from the single squashed message.
 On both `main` and `dev`:
 
 - Require a PR, no direct pushes
-- Require CI to pass
+- Require branch-flow, commit, format, vet, lint, race-test, and cross-build checks to pass
 - Require the branch to be up to date before merge
+- Require review conversations to be resolved
 - Disallow force pushes and deletion
 
 `main` additionally requires that the source branch is `dev` or a release-please branch.
