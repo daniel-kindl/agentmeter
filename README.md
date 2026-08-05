@@ -1,8 +1,8 @@
 # agentmeter
 
 Agentmeter is a local-first usage meter for Claude Code and Codex sessions. This repository
-currently contains infrastructure scaffolding only; parsers, storage queries, API behavior,
-and the dashboard are not implemented yet.
+currently contains a streaming Claude Code usage parser and the storage foundation. Codex
+parsing, reporting queries, API behavior, and the dashboard are not implemented yet.
 
 ## Requirements
 
@@ -19,8 +19,8 @@ make build
 make cross
 ```
 
-The future CLI surface is reserved for `scan`, `serve`, and `version`. See
-[CONTRIBUTING.md](CONTRIBUTING.md) before making changes.
+The CLI surface is reserved for `scan`, `serve`, and `version`; `scan` is not wired to the
+Claude parser yet. See [CONTRIBUTING.md](CONTRIBUTING.md) before making changes.
 
 ## Privacy
 
