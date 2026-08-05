@@ -19,13 +19,13 @@ jobs:
           fetch-depth: 0
       - name: Validate commit headers
         env:
-          BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          git fetch --no-tags origin "$BASE_REF"
           while IFS= read -r header; do
             printf '%s\n' "$header" > "$RUNNER_TEMP/commit-message"
             .githooks/commit-msg "$RUNNER_TEMP/commit-message"
-          done < <(git log --format=%s "origin/$BASE_REF..HEAD")
+          done < <(git log --format=%s "$BASE_SHA..$HEAD_SHA")
 
   format:
     name: Format
@@ -88,4 +88,3 @@ jobs:
           GOARCH: amd64
           GOOS: ${{ matrix.goos }}
         run: go build ./cmd/agentmeter
-
