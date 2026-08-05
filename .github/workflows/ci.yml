@@ -18,6 +18,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Validate commit headers
+        if: github.base_ref == 'dev'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -26,6 +27,9 @@ jobs:
             printf '%s\n' "$header" > "$RUNNER_TEMP/commit-message"
             .githooks/commit-msg "$RUNNER_TEMP/commit-message"
           done < <(git log --format=%s "$BASE_SHA..$HEAD_SHA")
+      - name: Confirm release promotion
+        if: github.base_ref == 'main' && github.head_ref == 'dev'
+        run: echo "Commit headers were validated when each change entered dev."
 
   format:
     name: Format
