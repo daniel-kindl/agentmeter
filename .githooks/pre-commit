@@ -3,6 +3,8 @@ set -eu
 
 for path in $(git diff --cached --name-only --diff-filter=ACMR); do
     case "$path" in
+        testdata/synthetic/*.jsonl)
+            ;;
         *.jsonl)
             echo "refusing to commit session log data: $path" >&2
             exit 1
