@@ -10,13 +10,13 @@ LDFLAGS := -X main.version=$(VERSION)
 .PHONY: build check cross fmt hooks lint test vet
 
 build:
-	mkdir -p bin
+	mkdir bin 2>/dev/null || true
 	go build -ldflags "$(LDFLAGS)" -o bin/agentmeter ./cmd/agentmeter
 
 check: fmt vet lint test
 
 cross:
-	mkdir -p dist
+	mkdir dist 2>/dev/null || true
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/agentmeter-windows-amd64.exe ./cmd/agentmeter
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/agentmeter-linux-amd64 ./cmd/agentmeter
 
