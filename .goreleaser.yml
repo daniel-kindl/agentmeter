@@ -26,6 +26,18 @@ archives:
           - zip
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    # Launchers sit beside the binary so the archive has a one-step entry point
+    # that needs no terminal: agentmeter up scans, serves, and opens the browser.
+    files:
+      - src: scripts/agentmeter-up.cmd
+        dst: agentmeter-up.cmd
+      - src: scripts/agentmeter-up.sh
+        dst: agentmeter-up.sh
+        info:
+          mode: 0o755
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
 
 checksum:
   name_template: checksums.txt

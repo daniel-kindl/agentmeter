@@ -7,10 +7,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/daniel-kindl/agentmeter/internal/discovery"
 	"github.com/daniel-kindl/agentmeter/internal/limits"
@@ -22,31 +26,29 @@ import (
 
 const (
 	serveAddress = "127.0.0.1:7777"
-	usageText    = "usage: agentmeter <scan|serve|version>"
+	usageText    = "usage: agentmeter <up|scan|serve|version>"
 )
 
 var version = "dev"
 
 type application struct {
-	stdout         io.Writer
-	stderr         io.Writer
-	version        string
-	listenAndServe func(string, http.Handler) error
-	userConfigDir  func() (string, error)
-	userHomeDir    func() (string, error)
-	openStore      func(context.Context, string) (*store.Store, error)
-	discoverFiles  func() ([]discovery.File, error)
-	scanFiles      func(context.Context, *store.Store, []discovery.File) (scanner.Result, error)
-	handler        func(*store.Store, *limits.Service) http.Handler
+	stdout        io.Writer
+	stderr        io.Writer
+	version       string
+	userConfigDir func() (string, error)
+	userHomeDir   func() (string, error)
+	openStore     func(context.Context, string) (*store.Store, error)
+	discoverFiles func() ([]discovery.File, error)
+	scanFiles     func(context.Context, *store.Store, []discovery.File) (scanner.Result, error)
+	handler       func(*store.Store, *limits.Service) http.Handler
+	// listenAndServe reports the bound address through ready before it starts
+	// serving, so a caller can open a browser without racing the listener.
+	listenAndServe func(address string, handler http.Handler, ready func(net.Addr)) error
+	openURL        func(string) error
 }
 
 func main() {
-	app := application{
-		stdout:         os.Stdout,
-		stderr:         os.Stderr,
-		version:        version,
-		listenAndServe: http.ListenAndServe,
-	}
+	app := application{stdout: os.Stdout, stderr: os.Stderr, version: version}
 	os.Exit(app.run(os.Args[1:]))
 }
 
@@ -60,6 +62,8 @@ func (app application) run(args []string) int {
 	}
 
 	switch args[0] {
+	case "up":
+		return app.runUp(args[1:])
 	case "scan":
 		return app.runScan(args[1:])
 	case "serve":
@@ -99,7 +103,40 @@ func (app application) withDefaults() application {
 	if app.discoverFiles == nil {
 		app.discoverFiles = app.defaultFiles
 	}
+	if app.listenAndServe == nil {
+		app.listenAndServe = listenAndServe
+	}
+	if app.openURL == nil {
+		app.openURL = openInBrowser
+	}
 	return app
+}
+
+// listenAndServe binds before serving so that ready fires only once the socket
+// is accepting connections. A browser opened from ready cannot arrive early.
+func listenAndServe(address string, handler http.Handler, ready func(net.Addr)) error {
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return err
+	}
+	if ready != nil {
+		ready(listener.Addr())
+	}
+	server := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+	return server.Serve(listener)
+}
+
+// openInBrowser hands a loopback URL to the desktop's default handler. The URL
+// is always one agentmeter just bound, never operator input.
+func openInBrowser(url string) error {
+	switch runtime.GOOS {
+	case "windows":
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		return exec.Command("open", url).Start()
+	default:
+		return exec.Command("xdg-open", url).Start()
+	}
 }
 
 func (app application) runScan(args []string) int {
@@ -127,14 +164,8 @@ func (app application) runScan(args []string) int {
 		return 1
 	}
 	defer func() { _ = database.Close() }()
-	files, err := app.discoverFiles()
-	if err != nil {
-		writef(app.stderr, "scan: discover sessions\n")
-		return 1
-	}
-	result, err := app.scanFiles(context.Background(), database, files)
-	if err != nil {
-		writef(app.stderr, "scan: process sessions\n")
+	result, ok := app.scan("scan", database)
+	if !ok {
 		return 1
 	}
 	if *jsonOutput {
@@ -143,54 +174,96 @@ func (app application) runScan(args []string) int {
 		}
 		return 0
 	}
-	if !writef(app.stdout, "scanned %d Claude and %d Codex files: %d inserted, %d updated, %d duplicates, %d unparsed lines\n",
-		result.Claude.Files, result.Codex.Files, result.Inserted, result.Updated, result.Duplicates,
-		result.Claude.UnparsedLines+result.Codex.UnparsedLines) {
+	if !app.writeScanSummary(result) {
 		return 1
 	}
 	return 0
 }
 
+// serveOptions holds what serve and up have in common.
+type serveOptions struct {
+	databasePath string
+	address      string
+	live         bool
+	budgets      limits.Budgets
+	scanFirst    bool
+	openBrowser  bool
+}
+
 func (app application) runServe(args []string) int {
+	options, code := app.parseServeFlags("serve",
+		"usage: agentmeter serve [--db PATH] [--addr HOST:PORT] [--live] [--budget-5h N] [--budget-7d N]", args)
+	if code != 0 {
+		return code
+	}
+	return app.serveDashboard("serve", options)
+}
+
+// runUp is the single step: scan the local session logs, serve the dashboard,
+// and open it. It exists so that using agentmeter is one command rather than
+// three, which is what a released binary should offer.
+func (app application) runUp(args []string) int {
+	options, code := app.parseServeFlags("up",
+		"usage: agentmeter up [--db PATH] [--addr HOST:PORT] [--live] [--budget-5h N] [--budget-7d N] [--no-open]", args)
+	if code != 0 {
+		return code
+	}
+	options.scanFirst = true
+	return app.serveDashboard("up", options)
+}
+
+func (app application) parseServeFlags(name, usage string, args []string) (serveOptions, int) {
 	databasePath, err := app.defaultDatabasePath()
 	if err != nil {
-		writef(app.stderr, "serve: locate configuration directory\n")
-		return 1
+		writef(app.stderr, "%s: locate configuration directory\n", name)
+		return serveOptions{}, 1
 	}
-	address := serveAddress
-	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
+	options := serveOptions{databasePath: databasePath, address: serveAddress}
+
+	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.SetOutput(app.stderr)
-	flags.Usage = func() {
-		writef(app.stderr, "usage: agentmeter serve [--db PATH] [--addr HOST:PORT] [--live] [--budget-5h N] [--budget-7d N]\n")
+	flags.Usage = func() { writef(app.stderr, "%s\n", usage) }
+	flags.StringVar(&options.databasePath, "db", options.databasePath, "SQLite database path")
+	flags.StringVar(&options.address, "addr", options.address, "listen address")
+	flags.BoolVar(&options.live, "live", false,
+		"fetch authoritative limits: reads local agent credentials and contacts Anthropic and OpenAI")
+	flags.Int64Var(&options.budgets.FiveHour, "budget-5h", 0,
+		"token ceiling for the estimated five-hour window (0 compares against your busiest window)")
+	flags.Int64Var(&options.budgets.SevenDay, "budget-7d", 0,
+		"token ceiling for the estimated weekly window (0 compares against your busiest window)")
+	noOpen := false
+	if name == "up" {
+		flags.BoolVar(&noOpen, "no-open", false, "do not open the dashboard in a browser")
 	}
-	flags.StringVar(&databasePath, "db", databasePath, "SQLite database path")
-	flags.StringVar(&address, "addr", address, "listen address")
-	live := flags.Bool("live", false, "fetch authoritative limits: reads local agent credentials and contacts Anthropic and OpenAI")
-	budgetFiveHour := flags.Int64("budget-5h", 0, "token ceiling for the estimated five-hour window (0 compares against your busiest window)")
-	budgetSevenDay := flags.Int64("budget-7d", 0, "token ceiling for the estimated weekly window (0 compares against your busiest window)")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
 		flags.Usage()
-		return 2
+		return serveOptions{}, 2
 	}
-	if err := ensureDatabaseParent(databasePath); err != nil {
-		writef(app.stderr, "serve: create database directory\n")
+	options.openBrowser = name == "up" && !noOpen
+	return options, 0
+}
+
+func (app application) serveDashboard(name string, options serveOptions) int {
+	if err := ensureDatabaseParent(options.databasePath); err != nil {
+		writef(app.stderr, "%s: create database directory\n", name)
 		return 1
 	}
-	database, err := app.openStore(context.Background(), databasePath)
+	database, err := app.openStore(context.Background(), options.databasePath)
 	if err != nil {
-		writef(app.stderr, "serve: open database\n")
+		writef(app.stderr, "%s: open database\n", name)
 		return 1
 	}
 	defer func() { _ = database.Close() }()
 
-	service := &limits.Service{
-		Store:   database,
-		Budgets: limits.Budgets{FiveHour: *budgetFiveHour, SevenDay: *budgetSevenDay},
+	if options.scanFirst && !app.scanInto(name, database) {
+		return 1
 	}
-	if *live {
+
+	service := &limits.Service{Store: database, Budgets: options.budgets}
+	if options.live {
 		providers, err := app.liveProviders()
 		if err != nil {
-			writef(app.stderr, "serve: locate home directory\n")
+			writef(app.stderr, "%s: locate home directory\n", name)
 			return 1
 		}
 		service.Providers = providers
@@ -201,14 +274,48 @@ func (app application) runServe(args []string) int {
 		}
 	}
 
-	if !writef(app.stdout, "serving on http://%s\n", address) {
-		return 1
+	ready := func(bound net.Addr) {
+		url := "http://" + bound.String()
+		writef(app.stdout, "serving on %s\n", url)
+		if !options.openBrowser {
+			return
+		}
+		// A browser that refuses to start is not a reason to stop serving; the
+		// address is already on screen.
+		if err := app.openURL(url); err != nil {
+			writef(app.stderr, "%s: open a browser at %s\n", name, url)
+		}
 	}
-	if err := app.listenAndServe(address, app.handler(database, service)); err != nil {
-		writef(app.stderr, "serve: %v\n", err)
+	if err := app.listenAndServe(options.address, app.handler(database, service), ready); err != nil {
+		writef(app.stderr, "%s: %v\n", name, err)
 		return 1
 	}
 	return 0
+}
+
+func (app application) scanInto(name string, database *store.Store) bool {
+	result, ok := app.scan(name, database)
+	return ok && app.writeScanSummary(result)
+}
+
+func (app application) scan(name string, database *store.Store) (scanner.Result, bool) {
+	files, err := app.discoverFiles()
+	if err != nil {
+		writef(app.stderr, "%s: discover sessions\n", name)
+		return scanner.Result{}, false
+	}
+	result, err := app.scanFiles(context.Background(), database, files)
+	if err != nil {
+		writef(app.stderr, "%s: process sessions\n", name)
+		return scanner.Result{}, false
+	}
+	return result, true
+}
+
+func (app application) writeScanSummary(result scanner.Result) bool {
+	return writef(app.stdout, "scanned %d Claude and %d Codex files: %d inserted, %d updated, %d duplicates, %d unparsed lines\n",
+		result.Claude.Files, result.Codex.Files, result.Inserted, result.Updated, result.Duplicates,
+		result.Claude.UnparsedLines+result.Codex.UnparsedLines)
 }
 
 // liveProviders builds the opt-in authoritative providers. Nothing calls this

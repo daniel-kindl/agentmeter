@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/daniel-kindl/agentmeter/internal/discovery"
 	"github.com/daniel-kindl/agentmeter/internal/limits"
+	"github.com/daniel-kindl/agentmeter/internal/scanner"
 	"github.com/daniel-kindl/agentmeter/internal/store"
 )
 
@@ -39,7 +42,7 @@ func TestRunCommands(t *testing.T) {
 				stdout:  &stdout,
 				stderr:  &stderr,
 				version: "test-version",
-				listenAndServe: func(string, http.Handler) error {
+				listenAndServe: func(string, http.Handler, func(net.Addr)) error {
 					t.Fatal("listenAndServe called unexpectedly")
 					return nil
 				},
@@ -88,7 +91,7 @@ func TestRunServe(t *testing.T) {
 		stdout:  &stdout,
 		stderr:  &stderr,
 		version: "test-version",
-		listenAndServe: func(address string, handler http.Handler) error {
+		listenAndServe: func(address string, handler http.Handler, _ func(net.Addr)) error {
 			gotAddress = address
 			gotHandler = handler
 			return nil
@@ -120,7 +123,7 @@ func TestRunServeError(t *testing.T) {
 		stdout:  &stdout,
 		stderr:  &stderr,
 		version: "test-version",
-		listenAndServe: func(string, http.Handler) error {
+		listenAndServe: func(string, http.Handler, func(net.Addr)) error {
 			return errors.New("synthetic listen failure")
 		},
 	}
@@ -148,7 +151,7 @@ func TestRunServeIsOfflineByDefault(t *testing.T) {
 			gotService = service
 			return http.NotFoundHandler()
 		},
-		listenAndServe: func(string, http.Handler) error { return nil },
+		listenAndServe: func(string, http.Handler, func(net.Addr)) error { return nil },
 	}
 
 	if got := app.run([]string{"serve", "--db", ":memory:"}); got != 0 {
@@ -179,7 +182,7 @@ func TestRunServeWithLiveBuildsProvidersAndSaysSo(t *testing.T) {
 			gotService = service
 			return http.NotFoundHandler()
 		},
-		listenAndServe: func(string, http.Handler) error { return nil },
+		listenAndServe: func(string, http.Handler, func(net.Addr)) error { return nil },
 	}
 
 	if got := app.run([]string{"serve", "--db", ":memory:", "--live"}); got != 0 {
@@ -207,7 +210,7 @@ func TestRunServeAcceptsBudgetOverrides(t *testing.T) {
 			gotService = service
 			return http.NotFoundHandler()
 		},
-		listenAndServe: func(string, http.Handler) error { return nil },
+		listenAndServe: func(string, http.Handler, func(net.Addr)) error { return nil },
 	}
 
 	if got := app.run([]string{"serve", "--db", ":memory:", "--budget-5h", "1900000", "--budget-7d", "20000000"}); got != 0 {
@@ -242,5 +245,161 @@ func TestConfigRootsFallBackToHome(t *testing.T) {
 	}
 	if got := codexRoot("/home"); got != filepath.Join("/home", ".codex") {
 		t.Fatalf("codex root = %q, want the home directory", got)
+	}
+}
+
+// fakeAddr stands in for a bound listener address.
+type fakeAddr string
+
+func (fakeAddr) Network() string  { return "tcp" }
+func (a fakeAddr) String() string { return string(a) }
+
+// up is the single step a released binary should offer: scan, serve, open.
+func TestRunUpScansServesAndOpensTheDashboard(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	var scanned bool
+	var openedURL string
+	app := application{
+		stdout:        &stdout,
+		stderr:        &stderr,
+		version:       "test-version",
+		discoverFiles: func() ([]discovery.File, error) { return nil, nil },
+		scanFiles: func(context.Context, *store.Store, []discovery.File) (scanner.Result, error) {
+			scanned = true
+			return scanner.Result{}, nil
+		},
+		openURL: func(url string) error {
+			openedURL = url
+			return nil
+		},
+		listenAndServe: func(_ string, _ http.Handler, ready func(net.Addr)) error {
+			ready(fakeAddr("127.0.0.1:7777"))
+			return nil
+		},
+	}
+
+	if got := app.run([]string{"up", "--db", ":memory:"}); got != 0 {
+		t.Fatalf("exit code = %d, stderr = %q", got, stderr.String())
+	}
+	if !scanned {
+		t.Error("up served without scanning first")
+	}
+	if openedURL != "http://127.0.0.1:7777" {
+		t.Errorf("opened %q, want the bound loopback URL", openedURL)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "scanned 0 Claude") || !strings.Contains(out, "serving on http://127.0.0.1:7777") {
+		t.Errorf("stdout = %q", out)
+	}
+}
+
+func TestRunUpRespectsNoOpen(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	app := application{
+		stdout:        &stdout,
+		stderr:        &stderr,
+		version:       "test-version",
+		discoverFiles: func() ([]discovery.File, error) { return nil, nil },
+		openURL: func(string) error {
+			t.Error("browser opened despite --no-open")
+			return nil
+		},
+		listenAndServe: func(_ string, _ http.Handler, ready func(net.Addr)) error {
+			ready(fakeAddr("127.0.0.1:7777"))
+			return nil
+		},
+	}
+
+	if got := app.run([]string{"up", "--db", ":memory:", "--no-open"}); got != 0 {
+		t.Fatalf("exit code = %d, stderr = %q", got, stderr.String())
+	}
+}
+
+// A browser that will not start is not a reason to stop serving.
+func TestRunUpKeepsServingWhenTheBrowserFails(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	app := application{
+		stdout:        &stdout,
+		stderr:        &stderr,
+		version:       "test-version",
+		discoverFiles: func() ([]discovery.File, error) { return nil, nil },
+		openURL:       func(string) error { return errors.New("no browser") },
+		listenAndServe: func(_ string, _ http.Handler, ready func(net.Addr)) error {
+			ready(fakeAddr("127.0.0.1:7777"))
+			return nil
+		},
+	}
+
+	if got := app.run([]string{"up", "--db", ":memory:"}); got != 0 {
+		t.Fatalf("exit code = %d, want 0 despite the browser failure", got)
+	}
+	if !strings.Contains(stdout.String(), "serving on") {
+		t.Errorf("stdout = %q, want the address printed anyway", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "open a browser at http://127.0.0.1:7777") {
+		t.Errorf("stderr = %q, want a fallback hint", stderr.String())
+	}
+}
+
+// serve is not up: it must never scan and never open a browser.
+func TestRunServeNeitherScansNorOpens(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	app := application{
+		stdout:  &stdout,
+		stderr:  &stderr,
+		version: "test-version",
+		discoverFiles: func() ([]discovery.File, error) {
+			t.Error("serve discovered sessions")
+			return nil, nil
+		},
+		openURL: func(string) error {
+			t.Error("serve opened a browser")
+			return nil
+		},
+		listenAndServe: func(_ string, _ http.Handler, ready func(net.Addr)) error {
+			ready(fakeAddr("127.0.0.1:7777"))
+			return nil
+		},
+	}
+
+	if got := app.run([]string{"serve", "--db", ":memory:"}); got != 0 {
+		t.Fatalf("exit code = %d, stderr = %q", got, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "scanned") {
+		t.Errorf("stdout = %q, want no scan summary", stdout.String())
+	}
+}
+
+func TestRunUpRejectsUnknownFlags(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	app := application{stdout: &stdout, stderr: &stderr, version: "test-version"}
+
+	if got := app.run([]string{"up", "--nonsense"}); got != 2 {
+		t.Fatalf("exit code = %d, want 2", got)
+	}
+	if !strings.Contains(stderr.String(), "usage: agentmeter up") {
+		t.Errorf("stderr = %q", stderr.String())
+	}
+}
+
+// serve has no --no-open flag; only up does.
+func TestRunServeRejectsNoOpen(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	app := application{stdout: &stdout, stderr: &stderr, version: "test-version"}
+
+	if got := app.run([]string{"serve", "--no-open"}); got != 2 {
+		t.Fatalf("exit code = %d, want 2", got)
 	}
 }
