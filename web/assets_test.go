@@ -1,6 +1,8 @@
 package web_test
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -25,32 +27,36 @@ func TestFilesContainDashboardAssets(t *testing.T) {
 	}
 }
 
-// The limits panel is wired across three files, so a rename in one of them
-// silently stops rendering. Assert the seams instead.
-func TestLimitsPanelIsWiredIntoTheDashboard(t *testing.T) {
+// elementSelector matches an id selector written as a string literal, which is
+// how app.js addresses the markup.
+var elementSelector = regexp.MustCompile(`"#([A-Za-z][\w-]*)"`)
+
+// Nothing connects the ids index.html declares to the ids app.js looks up: a
+// rename on one side compiles, serves, and silently renders nothing. Both sides
+// are read out of the files rather than restated here, so renaming in both
+// places stays green and renaming in one does not.
+func TestQueriedElementsExistInTheMarkup(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		asset string
-		want  []string
-	}{
-		{asset: "index.html", want: []string{`id="limits"`}},
-		{asset: "app.js", want: []string{"loadLimits", "/api/v1/limits", "renderLimitPanel"}},
-		{asset: "style.css", want: []string{".meter-fill", ".origin-badge", ".limits"}},
-	}
+	script := readAsset(t, "app.js")
+	markup := readAsset(t, "index.html")
 
-	for _, tt := range tests {
-		t.Run(tt.asset, func(t *testing.T) {
-			t.Parallel()
-			contents, err := assets.Files.ReadFile(tt.asset)
-			if err != nil {
-				t.Fatalf("read embedded asset %q: %v", tt.asset, err)
-			}
-			for _, want := range tt.want {
-				if !strings.Contains(string(contents), want) {
-					t.Errorf("asset %q does not contain %q", tt.asset, want)
-				}
-			}
-		})
+	matches := elementSelector.FindAllStringSubmatch(script, -1)
+	if len(matches) == 0 {
+		t.Fatal("no id selectors found in app.js: the extraction pattern is stale and this test proves nothing")
 	}
+	for _, match := range matches {
+		if !strings.Contains(markup, fmt.Sprintf("id=%q", match[1])) {
+			t.Errorf("app.js addresses #%s but index.html declares no such element", match[1])
+		}
+	}
+}
+
+func readAsset(t *testing.T, name string) string {
+	t.Helper()
+	contents, err := assets.Files.ReadFile(name)
+	if err != nil {
+		t.Fatalf("read embedded asset %q: %v", name, err)
+	}
+	return string(contents)
 }

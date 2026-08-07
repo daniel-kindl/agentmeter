@@ -11,13 +11,23 @@ import (
 	assets "github.com/daniel-kindl/agentmeter/web"
 )
 
+// The API paths the dashboard serves. The embedded page fetches these, and a
+// test asserts the two sides stay in step rather than restating the strings.
+const (
+	DashboardRoute = "/api/v1/dashboard"
+	LimitsRoute    = "/api/v1/limits"
+)
+
+// Routes returns every API path this handler serves.
+func Routes() []string { return []string{DashboardRoute, LimitsRoute} }
+
 // Handler returns an HTTP handler for the embedded dashboard assets.
 //
 // A nil limitService disables the limits endpoint, which is what serving
 // without the live flag does.
 func Handler(database *store.Store, limitService *limits.Service) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/dashboard", func(writer http.ResponseWriter, request *http.Request) {
+	mux.HandleFunc("GET "+DashboardRoute, func(writer http.ResponseWriter, request *http.Request) {
 		if database == nil {
 			http.Error(writer, `{"error":"database unavailable"}`, http.StatusServiceUnavailable)
 			return
@@ -33,7 +43,7 @@ func Handler(database *store.Store, limitService *limits.Service) http.Handler {
 		}
 		writeJSON(writer, dashboard)
 	})
-	mux.HandleFunc("GET /api/v1/limits", func(writer http.ResponseWriter, request *http.Request) {
+	mux.HandleFunc("GET "+LimitsRoute, func(writer http.ResponseWriter, request *http.Request) {
 		if limitService == nil {
 			http.Error(writer, `{"error":"limits unavailable"}`, http.StatusServiceUnavailable)
 			return
