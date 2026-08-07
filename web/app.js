@@ -180,9 +180,48 @@ function renderLimitPanel(limits) {
   return panel;
 }
 
+// The switch reads local agent credentials and contacts the vendors, so the
+// control says what it does rather than only that it is on.
+function renderLiveSwitch(data) {
+  const bar = element("div", "limits-bar");
+  bar.append(element("h2", null, "Usage limits"));
+
+  const control = element("label", "live-switch");
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = data.live;
+  box.addEventListener("change", () => setLive(box.checked, box));
+  control.append(box, element("span", null, data.live ? "Live" : "Estimated"));
+  control.title = data.live
+    ? "Reading local agent credentials and contacting the configured endpoints."
+    : "Turn on to read local agent credentials and fetch the agents' own numbers.";
+  bar.append(control);
+  return bar;
+}
+
 function renderLimits(data) {
-  limitsNode.replaceChildren(...data.sources.map(renderLimitPanel));
-  limitsNode.hidden = data.sources.length === 0;
+  const children = data.sources.map(renderLimitPanel);
+  if (data.configurable) children.unshift(renderLiveSwitch(data));
+  limitsNode.replaceChildren(...children);
+  limitsNode.hidden = children.length === 0;
+}
+
+async function setLive(enabled, control) {
+  control.disabled = true;
+  try {
+    const response = await fetch("/api/v1/limits/live", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!response.ok) throw new Error("request failed");
+    // The server replies with the report the switch produced, so the panels
+    // show the consequence rather than an optimistic guess.
+    renderLimits(await response.json());
+  } catch (_) {
+    control.checked = !enabled;
+    control.disabled = false;
+  }
 }
 
 // Limits load independently of the token dashboard. A limits failure must never

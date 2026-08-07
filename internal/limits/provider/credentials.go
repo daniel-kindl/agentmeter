@@ -17,20 +17,34 @@ type Credential struct {
 	Account string
 }
 
+// credentialPaths resolves where a token may live. An explicitly configured
+// path replaces the search entirely: an operator who names a file means that
+// file, and silently falling back to the agent's default would read a
+// credential they did not point at.
+func credentialPaths(configRoots []string, name, configured string) []string {
+	if configured != "" {
+		return []string{configured}
+	}
+	paths := make([]string, 0, len(configRoots))
+	for _, root := range configRoots {
+		paths = append(paths, filepath.Join(root, name))
+	}
+	return paths
+}
+
 // ClaudeCredential reads Claude Code's OAuth access token.
 //
 // The environment variable wins so an operator can supply a token without
 // agentmeter touching the credentials file at all. On macOS Claude Code stores
 // credentials in the keychain rather than on disk; that path is not read here,
 // so those operators must use the environment variable.
-func ClaudeCredential(configRoots []string) func() (Credential, error) {
+func ClaudeCredential(configRoots []string, configuredPath string) func() (Credential, error) {
 	return func() (Credential, error) {
 		if token := strings.TrimSpace(os.Getenv("CLAUDE_CODE_OAUTH_TOKEN")); token != "" {
 			return Credential{Token: token}, nil
 		}
 		var missing []string
-		for _, root := range configRoots {
-			path := filepath.Join(root, ".credentials.json")
+		for _, path := range credentialPaths(configRoots, ".credentials.json", configuredPath) {
 			data, err := os.ReadFile(path) //nolint:gosec // an operator-configured agent config root
 			if errors.Is(err, os.ErrNotExist) {
 				missing = append(missing, path)
@@ -65,9 +79,12 @@ func ClaudeCredential(configRoots []string) func() (Credential, error) {
 }
 
 // CodexCredential reads the Codex CLI's ChatGPT access token and account.
-func CodexCredential(configRoot string) func() (Credential, error) {
+func CodexCredential(configRoot, configuredPath string) func() (Credential, error) {
 	return func() (Credential, error) {
 		path := filepath.Join(configRoot, "auth.json")
+		if configuredPath != "" {
+			path = configuredPath
+		}
 		data, err := os.ReadFile(path) //nolint:gosec // an operator-configured agent config root
 		if errors.Is(err, os.ErrNotExist) {
 			return Credential{}, fmt.Errorf("no Codex credentials at %s: run codex login", path)

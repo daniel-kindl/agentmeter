@@ -329,7 +329,7 @@ func TestFetchSurfacesCredentialErrorsWithoutCallingOut(t *testing.T) {
 func TestClaudeCredentialPrefersTheEnvironment(t *testing.T) {
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", syntheticToken)
 
-	credential, err := provider.ClaudeCredential([]string{t.TempDir()})()
+	credential, err := provider.ClaudeCredential([]string{t.TempDir()}, "")()
 	if err != nil {
 		t.Fatalf("load credential: %v", err)
 	}
@@ -346,7 +346,7 @@ func TestClaudeCredentialReadsTheCredentialsFile(t *testing.T) {
 	writeFile(t, filepath.Join(root, ".credentials.json"),
 		`{"claudeAiOauth":{"accessToken":"`+syntheticToken+`","refreshToken":"synthetic-refresh","expiresAt":`+itoa(expires)+`}}`)
 
-	credential, err := provider.ClaudeCredential([]string{t.TempDir(), root})()
+	credential, err := provider.ClaudeCredential([]string{t.TempDir(), root}, "")()
 	if err != nil {
 		t.Fatalf("load credential: %v", err)
 	}
@@ -365,7 +365,7 @@ func TestClaudeCredentialReportsExpiry(t *testing.T) {
 	writeFile(t, filepath.Join(root, ".credentials.json"),
 		`{"claudeAiOauth":{"accessToken":"`+syntheticToken+`","expiresAt":`+itoa(expired)+`}}`)
 
-	_, err := provider.ClaudeCredential([]string{root})()
+	_, err := provider.ClaudeCredential([]string{root}, "")()
 	if err == nil || !strings.Contains(err.Error(), "expired") {
 		t.Fatalf("error = %v, want an expiry explanation", err)
 	}
@@ -375,7 +375,7 @@ func TestClaudeCredentialNamesTheDirectoriesItSearched(t *testing.T) {
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
 
 	root := t.TempDir()
-	_, err := provider.ClaudeCredential([]string{root})()
+	_, err := provider.ClaudeCredential([]string{root}, "")()
 	if err == nil || !strings.Contains(err.Error(), root) {
 		t.Fatalf("error = %v, want it to name %q", err, root)
 	}
@@ -389,7 +389,7 @@ func TestCodexCredentialReadsTokenAndAccount(t *testing.T) {
 		`{"auth_mode":"chatgpt","OPENAI_API_KEY":null,"tokens":{"id_token":"synthetic-id","access_token":"`+
 			syntheticToken+`","refresh_token":"synthetic-refresh","account_id":"account-1"},"last_refresh":"2026-08-07T11:00:00Z"}`)
 
-	credential, err := provider.CodexCredential(root)()
+	credential, err := provider.CodexCredential(root, "")()
 	if err != nil {
 		t.Fatalf("load credential: %v", err)
 	}
@@ -406,7 +406,7 @@ func TestCodexCredentialRejectsAPIKeyOnlyAuth(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "auth.json"), `{"auth_mode":"apiKey","OPENAI_API_KEY":"synthetic-api-key","tokens":null}`)
 
-	_, err := provider.CodexCredential(root)()
+	_, err := provider.CodexCredential(root, "")()
 	if err == nil || !strings.Contains(err.Error(), "codex login") {
 		t.Fatalf("error = %v, want sign-in guidance", err)
 	}
@@ -415,7 +415,7 @@ func TestCodexCredentialRejectsAPIKeyOnlyAuth(t *testing.T) {
 func TestCodexCredentialReportsMissingFile(t *testing.T) {
 	t.Parallel()
 
-	_, err := provider.CodexCredential(t.TempDir())()
+	_, err := provider.CodexCredential(t.TempDir(), "")()
 	if err == nil || !strings.Contains(err.Error(), "codex login") {
 		t.Fatalf("error = %v, want sign-in guidance", err)
 	}

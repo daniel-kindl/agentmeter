@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/daniel-kindl/agentmeter/internal/config"
 	"github.com/daniel-kindl/agentmeter/internal/discovery"
 	"github.com/daniel-kindl/agentmeter/internal/limits"
 	"github.com/daniel-kindl/agentmeter/internal/limits/provider"
@@ -259,17 +261,41 @@ func (app application) serveDashboard(name string, options serveOptions) int {
 		return 1
 	}
 
-	service := &limits.Service{Store: database, Budgets: options.budgets}
-	if options.live {
-		providers, err := app.liveProviders()
-		if err != nil {
-			writef(app.stderr, "%s: locate home directory\n", name)
-			return 1
-		}
-		service.Providers = providers
+	configPath, err := app.configPath()
+	if err != nil {
+		writef(app.stderr, "%s: locate configuration directory\n", name)
+		return 1
+	}
+	settings, err := config.Load(configPath)
+	if err != nil {
+		writef(app.stderr, "%s: %v\n", name, err)
+		return 1
+	}
+
+	budgets := options.budgets
+	// A flag is a deliberate instruction for this run and outranks the file.
+	if budgets.FiveHour == 0 {
+		budgets.FiveHour = settings.Limits.FiveHourBudget
+	}
+	if budgets.SevenDay == 0 {
+		budgets.SevenDay = settings.Limits.SevenDayBudget
+	}
+
+	service := &limits.Service{Store: database, Budgets: budgets}
+	providers, err := app.liveProviders(settings)
+	if err != nil {
+		writef(app.stderr, "%s: %v\n", name, err)
+		return 1
+	}
+	service.Providers = providers
+	if err := service.RestoreLive(context.Background(), options.live); err != nil {
+		writef(app.stderr, "%s: read the live-limits preference\n", name)
+		return 1
+	}
+	if service.Live() {
 		// Contacting a vendor is the one thing agentmeter does that leaves the
 		// machine, so it announces itself rather than happening quietly.
-		if !writef(app.stdout, "live limits enabled: reading local agent credentials and contacting Anthropic and OpenAI\n") {
+		if !writef(app.stdout, "live limits enabled: reading local agent credentials and contacting %s\n", vendorList(settings)) {
 			return 1
 		}
 	}
@@ -318,17 +344,72 @@ func (app application) writeScanSummary(result scanner.Result) bool {
 		result.Claude.UnparsedLines+result.Codex.UnparsedLines)
 }
 
-// liveProviders builds the opt-in authoritative providers. Nothing calls this
-// unless the operator passed --live.
-func (app application) liveProviders() ([]limits.Provider, error) {
+// liveProviders builds the authoritative providers named by configuration.
+// Constructing one opens nothing; a provider only reads a credential or
+// contacts a vendor once the live switch is on and a report is requested.
+func (app application) liveProviders(settings config.Config) ([]limits.Provider, error) {
 	home, err := app.userHomeDir()
 	if err != nil {
 		return nil, err
 	}
-	return []limits.Provider{
-		provider.NewClaude(claudeConfigRoots(home), app.version),
-		provider.NewCodex(codexRoot(home)),
-	}, nil
+	built := make([]limits.Provider, 0, len(settings.Limits.Providers))
+	for _, candidate := range settings.Limits.Providers {
+		if candidate.Disabled {
+			continue
+		}
+		switch candidate.Kind {
+		case config.KindAnthropicOAuth:
+			built = append(built, provider.NewClaude(
+				claudeConfigRoots(home), app.version,
+				candidate.BaseURL, candidate.UserAgent, candidate.CredentialPath))
+		case config.KindChatGPTUsage:
+			built = append(built, provider.NewCodex(
+				codexRoot(home), candidate.BaseURL, candidate.UserAgent, candidate.CredentialPath))
+		default:
+			// Load already rejected unknown kinds, so reaching here means the
+			// two lists drifted apart.
+			return nil, fmt.Errorf("provider %q has unsupported kind %q", candidate.Source, candidate.Kind)
+		}
+	}
+	return built, nil
+}
+
+// vendorList names the hosts the live switch will contact, so the notice
+// reflects the configured endpoints rather than a hardcoded sentence.
+func vendorList(settings config.Config) string {
+	seen := map[string]bool{}
+	var hosts []string
+	for _, candidate := range settings.Limits.Providers {
+		if candidate.Disabled {
+			continue
+		}
+		host := candidate.BaseURL
+		if host == "" {
+			host = map[string]string{
+				config.KindAnthropicOAuth: provider.ClaudeBaseURL,
+				config.KindChatGPTUsage:   provider.CodexBaseURL,
+			}[candidate.Kind]
+		}
+		if parsed, err := url.Parse(host); err == nil && parsed.Host != "" {
+			host = parsed.Host
+		}
+		if !seen[host] {
+			seen[host] = true
+			hosts = append(hosts, host)
+		}
+	}
+	if len(hosts) == 0 {
+		return "no configured endpoints"
+	}
+	return strings.Join(hosts, " and ")
+}
+
+func (app application) configPath() (string, error) {
+	root, err := app.userConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, "agentmeter", config.FileName), nil
 }
 
 func (app application) defaultDatabasePath() (string, error) {

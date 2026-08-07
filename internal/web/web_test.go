@@ -96,7 +96,7 @@ func TestLimitsAPI(t *testing.T) {
 
 // apiCall matches an API path the embedded page fetches, written as either a
 // plain string or the head of a template literal carrying a query string.
-var apiCall = regexp.MustCompile("[\"`](/api/v1/[\\w-]+)")
+var apiCall = regexp.MustCompile("[\"`](/api/v1/[\\w/-]+)")
 
 // The page and the mux agree on paths by convention only. Both lists are read
 // from source rather than restated, so this fails on a one-sided rename and

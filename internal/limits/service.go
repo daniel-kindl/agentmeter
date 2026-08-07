@@ -3,6 +3,7 @@ package limits
 import (
 	"context"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -26,9 +27,48 @@ type Service struct {
 	CacheTTL  time.Duration
 
 	// refresh serializes provider access so that concurrent dashboard loads
-	// produce one fetch rather than one each.
-	refresh sync.Mutex
+	// produce one fetch rather than one each. It also guards live.
+	refresh     sync.Mutex
+	liveEnabled bool
 }
+
+// SetLive turns authoritative fetching on or off and remembers the choice.
+//
+// The preference is persisted rather than held in memory because it is made in
+// the dashboard, and a setting that silently reverts on restart is a setting the
+// operator cannot trust.
+func (s *Service) SetLive(ctx context.Context, enabled bool) error {
+	s.refresh.Lock()
+	s.liveEnabled = enabled
+	s.refresh.Unlock()
+	return s.Store.SetSetting(ctx, store.SettingLiveLimits, strconv.FormatBool(enabled))
+}
+
+// Live reports whether authoritative fetching is on.
+func (s *Service) Live() bool {
+	s.refresh.Lock()
+	defer s.refresh.Unlock()
+	return s.liveEnabled
+}
+
+// RestoreLive loads the stored preference, falling back to enabled when the
+// operator asked for it on the command line and nothing is stored yet.
+func (s *Service) RestoreLive(ctx context.Context, enabled bool) error {
+	stored, found, err := s.Store.Setting(ctx, store.SettingLiveLimits)
+	if err != nil {
+		return err
+	}
+	if found {
+		// A command-line --live still wins for this run: it is the more
+		// explicit, more recent instruction.
+		enabled = enabled || stored == "true"
+	}
+	return s.SetLive(ctx, enabled)
+}
+
+// Configurable reports whether the dashboard can offer the live toggle at all.
+// Without providers there is nothing to turn on.
+func (s *Service) Configurable() bool { return len(s.Providers) > 0 }
 
 // Report returns every source's limit windows.
 //
@@ -50,7 +90,12 @@ func (s *Service) Report(ctx context.Context, now time.Time, location *time.Loca
 		bySource[live.Source] = merge(bySource[live.Source], live)
 	}
 
-	report := Report{Timezone: location.String(), Sources: make([]SourceLimits, 0, len(bySource))}
+	report := Report{
+		Timezone:     location.String(),
+		Live:         s.Live(),
+		Configurable: s.Configurable(),
+		Sources:      make([]SourceLimits, 0, len(bySource)),
+	}
 	for _, limits := range bySource {
 		report.Sources = append(report.Sources, limits)
 	}
@@ -105,6 +150,9 @@ func (s *Service) live(ctx context.Context, now time.Time) []SourceLimits {
 	}
 	s.refresh.Lock()
 	defer s.refresh.Unlock()
+	if !s.liveEnabled {
+		return nil
+	}
 
 	cached, err := s.Store.LoadLimitSnapshots(ctx)
 	if err != nil {

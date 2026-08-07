@@ -39,6 +39,16 @@ func (s *stubProvider) callCount() int {
 	return s.calls
 }
 
+// enableLive turns on authoritative fetching, which is off until the operator
+// asks for it. Tests that exercise providers have to opt in the same way.
+func enableLive(t *testing.T, service *limits.Service) *limits.Service {
+	t.Helper()
+	if err := service.SetLive(context.Background(), true); err != nil {
+		t.Fatalf("enable live limits: %v", err)
+	}
+	return service
+}
+
 func liveWindows() []limits.Window {
 	return []limits.Window{
 		{Kind: limits.KindFiveHour, Utilization: 91},
@@ -50,10 +60,10 @@ func TestReportPrefersLiveWindowsOverEstimates(t *testing.T) {
 	t.Parallel()
 
 	database := newStore(t, event("claude", now.Add(-time.Hour), 100))
-	service := &limits.Service{
+	service := enableLive(t, &limits.Service{
 		Store:     database,
 		Providers: []limits.Provider{&stubProvider{name: "claude", windows: liveWindows()}},
-	}
+	})
 
 	report, err := service.Report(context.Background(), now, time.UTC)
 	if err != nil {
@@ -105,7 +115,7 @@ func TestReportReusesCachedSnapshotsWithinTheTTL(t *testing.T) {
 
 	database := newStore(t, event("claude", now.Add(-time.Hour), 100))
 	stub := &stubProvider{name: "claude", windows: liveWindows()}
-	service := &limits.Service{Store: database, Providers: []limits.Provider{stub}, CacheTTL: 180 * time.Second}
+	service := enableLive(t, &limits.Service{Store: database, Providers: []limits.Provider{stub}, CacheTTL: 180 * time.Second})
 	ctx := context.Background()
 
 	if _, err := service.Report(ctx, now, time.UTC); err != nil {
@@ -137,7 +147,7 @@ func TestReportFallsBackToStaleSnapshotWhenAProviderFails(t *testing.T) {
 
 	database := newStore(t, event("claude", now.Add(-time.Hour), 100))
 	stub := &stubProvider{name: "claude", windows: liveWindows()}
-	service := &limits.Service{Store: database, Providers: []limits.Provider{stub}, CacheTTL: time.Minute}
+	service := enableLive(t, &limits.Service{Store: database, Providers: []limits.Provider{stub}, CacheTTL: time.Minute})
 	ctx := context.Background()
 
 	if _, err := service.Report(ctx, now, time.UTC); err != nil {
@@ -172,7 +182,7 @@ func TestReportFallsBackToEstimateWhenAProviderFailsWithoutCache(t *testing.T) {
 
 	database := newStore(t, event("claude", now.Add(-time.Hour), 100))
 	stub := &stubProvider{name: "claude", err: errors.New("no Claude credentials found")}
-	service := &limits.Service{Store: database, Providers: []limits.Provider{stub}}
+	service := enableLive(t, &limits.Service{Store: database, Providers: []limits.Provider{stub}})
 
 	report, err := service.Report(context.Background(), now, time.UTC)
 	if err != nil {
@@ -200,12 +210,12 @@ func TestReportIncludesLiveSourcesWithNoStoredUsage(t *testing.T) {
 	t.Parallel()
 
 	database := newStore(t, event("claude", now.Add(-time.Hour), 100))
-	service := &limits.Service{
+	service := enableLive(t, &limits.Service{
 		Store: database,
 		Providers: []limits.Provider{
 			&stubProvider{name: "codex", windows: liveWindows()},
 		},
-	}
+	})
 
 	report, err := service.Report(context.Background(), now, time.UTC)
 	if err != nil {
@@ -226,10 +236,10 @@ func TestReportIncludesLiveSourcesWithNoStoredUsage(t *testing.T) {
 func TestReportMarksASourceUnavailableWithNoEstimateAndNoCache(t *testing.T) {
 	t.Parallel()
 
-	service := &limits.Service{
+	service := enableLive(t, &limits.Service{
 		Store:     newStore(t),
 		Providers: []limits.Provider{&stubProvider{name: "codex", err: errors.New("run codex login")}},
-	}
+	})
 
 	report, err := service.Report(context.Background(), now, time.UTC)
 	if err != nil {
@@ -248,7 +258,7 @@ func TestReportSerializesConcurrentRefreshes(t *testing.T) {
 
 	database := newStore(t, event("claude", now.Add(-time.Hour), 100))
 	stub := &stubProvider{name: "claude", windows: liveWindows()}
-	service := &limits.Service{Store: database, Providers: []limits.Provider{stub}, CacheTTL: time.Hour}
+	service := enableLive(t, &limits.Service{Store: database, Providers: []limits.Provider{stub}, CacheTTL: time.Hour})
 
 	var group sync.WaitGroup
 	for range 8 {
@@ -264,5 +274,107 @@ func TestReportSerializesConcurrentRefreshes(t *testing.T) {
 
 	if got := stub.callCount(); got != 1 {
 		t.Fatalf("provider calls = %d, want 1", got)
+	}
+}
+
+// Providers exist as soon as they are configured, but configuring one must not
+// contact anything. Only the switch does that.
+func TestReportContactsNoProviderUntilLiveIsOn(t *testing.T) {
+	t.Parallel()
+
+	database := newStore(t, event("claude", now.Add(-time.Hour), 100))
+	stub := &stubProvider{name: "claude", windows: liveWindows()}
+	service := &limits.Service{Store: database, Providers: []limits.Provider{stub}}
+
+	report, err := service.Report(context.Background(), now, time.UTC)
+	if err != nil {
+		t.Fatalf("report: %v", err)
+	}
+	if stub.callCount() != 0 {
+		t.Fatalf("provider was called %d times with live off", stub.callCount())
+	}
+	if report.Live {
+		t.Fatal("report says live is on before it was enabled")
+	}
+	// The page still needs to know the switch exists.
+	if !report.Configurable {
+		t.Fatal("report says the switch is unavailable despite a configured provider")
+	}
+	if got := sourceOf(t, report.Sources, "claude").Origin; got != limits.OriginEstimated {
+		t.Fatalf("origin = %q, want estimated", got)
+	}
+}
+
+func TestSetLiveSurvivesANewService(t *testing.T) {
+	t.Parallel()
+
+	database := newStore(t, event("claude", now.Add(-time.Hour), 100))
+	stub := &stubProvider{name: "claude", windows: liveWindows()}
+	enableLive(t, &limits.Service{Store: database, Providers: []limits.Provider{stub}})
+
+	// A restart builds a fresh service against the same database. The choice
+	// made in the dashboard has to come back with it.
+	restarted := &limits.Service{Store: database, Providers: []limits.Provider{stub}}
+	if err := restarted.RestoreLive(context.Background(), false); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if !restarted.Live() {
+		t.Fatal("the stored live preference was not restored")
+	}
+
+	report, err := restarted.Report(context.Background(), now, time.UTC)
+	if err != nil {
+		t.Fatalf("report: %v", err)
+	}
+	if got := sourceOf(t, report.Sources, "claude").Origin; got != limits.OriginLive {
+		t.Fatalf("origin = %q, want live", got)
+	}
+}
+
+// Turning the switch off must stop the fetching, not merely relabel it.
+func TestSetLiveOffStopsContactingProviders(t *testing.T) {
+	t.Parallel()
+
+	database := newStore(t, event("claude", now.Add(-time.Hour), 100))
+	stub := &stubProvider{name: "claude", windows: liveWindows()}
+	service := enableLive(t, &limits.Service{Store: database, Providers: []limits.Provider{stub}})
+	if _, err := service.Report(context.Background(), now, time.UTC); err != nil {
+		t.Fatalf("first report: %v", err)
+	}
+	before := stub.callCount()
+
+	if err := service.SetLive(context.Background(), false); err != nil {
+		t.Fatalf("disable: %v", err)
+	}
+	report, err := service.Report(context.Background(), now.Add(time.Hour), time.UTC)
+	if err != nil {
+		t.Fatalf("second report: %v", err)
+	}
+	if stub.callCount() != before {
+		t.Fatalf("provider called %d more times after the switch was turned off", stub.callCount()-before)
+	}
+	if got := sourceOf(t, report.Sources, "claude").Origin; got != limits.OriginEstimated {
+		t.Fatalf("origin = %q, want estimated once live is off", got)
+	}
+}
+
+// A command-line --live is the more explicit instruction for the run it is
+// given in, so it wins over a stored preference of off.
+func TestRestoreLiveLetsTheFlagWinOverStoredOff(t *testing.T) {
+	t.Parallel()
+
+	database := newStore(t)
+	stub := &stubProvider{name: "claude", windows: liveWindows()}
+	service := &limits.Service{Store: database, Providers: []limits.Provider{stub}}
+	if err := service.SetLive(context.Background(), false); err != nil {
+		t.Fatalf("store off: %v", err)
+	}
+
+	restarted := &limits.Service{Store: database, Providers: []limits.Provider{stub}}
+	if err := restarted.RestoreLive(context.Background(), true); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if !restarted.Live() {
+		t.Fatal("--live did not override the stored preference")
 	}
 }

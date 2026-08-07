@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/daniel-kindl/agentmeter/internal/limits"
@@ -78,4 +79,12 @@ func defaultClient(client *http.Client) *http.Client {
 
 func percentage(value float64) float64 {
 	return min(max(value, 0), 100)
+}
+
+// orDefault keeps a built-in value when configuration leaves the field blank.
+func orDefault(configured, fallback string) string {
+	if strings.TrimSpace(configured) == "" {
+		return fallback
+	}
+	return configured
 }

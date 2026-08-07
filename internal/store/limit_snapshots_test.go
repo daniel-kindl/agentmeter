@@ -136,8 +136,9 @@ func TestOpenMigratesVersionTwo(t *testing.T) {
 	if _, err := db.Exec(Schema); err != nil {
 		t.Fatalf("create schema: %v", err)
 	}
-	// Version two predates the snapshot cache, so drop it back to that shape.
-	if _, err := db.Exec("DROP TABLE limit_snapshots; PRAGMA user_version = 2;"); err != nil {
+	// Version two predates both the snapshot cache and the settings table, so
+	// drop them back to that shape.
+	if _, err := db.Exec("DROP TABLE limit_snapshots; DROP TABLE settings; PRAGMA user_version = 2;"); err != nil {
 		t.Fatalf("create version two schema: %v", err)
 	}
 	insertSyntheticRow(t, db)

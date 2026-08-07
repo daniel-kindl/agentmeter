@@ -22,12 +22,16 @@ type Codex struct {
 	Credential func() (Credential, error)
 }
 
+// DefaultCodexUserAgent identifies the caller as the Codex CLI.
+const DefaultCodexUserAgent = "codex-cli"
+
 // NewCodex builds a provider reading credentials from the given config root.
-func NewCodex(configRoot string) *Codex {
+// A blank baseURL, userAgent, or credentialPath keeps the built-in default.
+func NewCodex(configRoot, baseURL, userAgent, credentialPath string) *Codex {
 	return &Codex{
-		BaseURL:    CodexBaseURL,
-		UserAgent:  "codex-cli",
-		Credential: CodexCredential(configRoot),
+		BaseURL:    orDefault(baseURL, CodexBaseURL),
+		UserAgent:  orDefault(userAgent, DefaultCodexUserAgent),
+		Credential: CodexCredential(configRoot, credentialPath),
 	}
 }
 

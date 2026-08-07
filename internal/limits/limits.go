@@ -66,10 +66,16 @@ type SourceLimits struct {
 }
 
 // Report is the complete limits response consumed by the local web application.
+//
+// Live and Configurable describe the switch rather than the readings: the page
+// needs to know whether authoritative fetching is on, and whether it can be
+// turned on at all, to render the control honestly.
 type Report struct {
-	Mode     string         `json:"mode"`
-	Timezone string         `json:"timezone"`
-	Sources  []SourceLimits `json:"sources"`
+	Mode         string         `json:"mode"`
+	Timezone     string         `json:"timezone"`
+	Live         bool           `json:"live"`
+	Configurable bool           `json:"configurable"`
+	Sources      []SourceLimits `json:"sources"`
 }
 
 func utilization(used, budget int64) float64 {

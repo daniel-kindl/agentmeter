@@ -160,8 +160,10 @@ func TestRunServeIsOfflineByDefault(t *testing.T) {
 	if gotService == nil {
 		t.Fatal("no limit service was built")
 	}
-	if len(gotService.Providers) != 0 {
-		t.Fatalf("providers = %d, want none without --live", len(gotService.Providers))
+	// Providers are configured up front, but configuring one contacts nothing.
+	// The switch is what must stay off.
+	if gotService.Live() {
+		t.Fatal("live limits are on without the flag")
 	}
 	if strings.Contains(stdout.String(), "live limits") {
 		t.Fatalf("stdout announces live limits without the flag: %q", stdout.String())
@@ -191,9 +193,16 @@ func TestRunServeWithLiveBuildsProvidersAndSaysSo(t *testing.T) {
 	if len(gotService.Providers) != 2 {
 		t.Fatalf("providers = %d, want claude and codex", len(gotService.Providers))
 	}
+	if !gotService.Live() {
+		t.Fatal("--live did not turn the switch on")
+	}
 	// Leaving the machine is the one thing agentmeter does not do quietly.
 	if !strings.Contains(stdout.String(), "live limits enabled") {
 		t.Fatalf("stdout = %q, want a live-limits notice", stdout.String())
+	}
+	// The notice names the configured endpoints rather than a fixed sentence.
+	if !strings.Contains(stdout.String(), "api.anthropic.com") || !strings.Contains(stdout.String(), "chatgpt.com") {
+		t.Fatalf("stdout = %q, want the contacted hosts named", stdout.String())
 	}
 }
 

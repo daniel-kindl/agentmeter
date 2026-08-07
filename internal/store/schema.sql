@@ -19,6 +19,13 @@ CREATE INDEX IF NOT EXISTS usage_events_source_idx ON usage_events(source);
 CREATE INDEX IF NOT EXISTS usage_events_model_idx ON usage_events(model);
 CREATE INDEX IF NOT EXISTS usage_events_message_id_idx ON usage_events(message_id);
 
+-- Operator preferences that must survive a restart. Values are stored as text
+-- so a new preference never needs a migration.
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 -- Cached authoritative limit windows, one row per source and window kind. This
 -- is a freshness cache and offline fallback rather than a history series, so a
 -- refresh replaces a source's rows instead of appending to them.

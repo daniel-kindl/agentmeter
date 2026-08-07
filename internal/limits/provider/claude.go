@@ -29,12 +29,20 @@ type Claude struct {
 	Credential func() (Credential, error)
 }
 
+// DefaultClaudeUserAgent identifies the caller as Claude Code, which the
+// endpoint requires: it throttles callers that do not.
+func DefaultClaudeUserAgent(version string) string { return "claude-code/" + version }
+
 // NewClaude builds a provider reading credentials from the given config roots.
-func NewClaude(configRoots []string, version string) *Claude {
+// A blank baseURL, userAgent, or credentialPath keeps the built-in default.
+func NewClaude(configRoots []string, version, baseURL, userAgent, credentialPath string) *Claude {
+	if credentialPath != "" {
+		configRoots = nil
+	}
 	return &Claude{
-		BaseURL:    ClaudeBaseURL,
-		UserAgent:  "claude-code/" + version,
-		Credential: ClaudeCredential(configRoots),
+		BaseURL:    orDefault(baseURL, ClaudeBaseURL),
+		UserAgent:  orDefault(userAgent, DefaultClaudeUserAgent(version)),
+		Credential: ClaudeCredential(configRoots, credentialPath),
 	}
 }
 
