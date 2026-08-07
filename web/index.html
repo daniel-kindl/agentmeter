@@ -4,47 +4,63 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>agentmeter</title>
-    <link rel="preload" href="/fonts/ibm-plex-sans-400.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/fonts/ibm-plex-mono-600.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/fonts/ibm-plex-sans-400.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
-    <header>
-      <div>
-        <h1>agentmeter</h1>
-        <p class="subtitle">Claude Code and Codex usage, measured on this machine.</p>
-      </div>
-      <nav aria-label="Usage range">
-        <button data-range="7d">7 days</button>
-        <button data-range="30d" class="active">30 days</button>
-        <button data-range="all">All time</button>
-      </nav>
-    </header>
+    <!--
+      THESIS: headroom is read as light, not as a filled bar. This surface refuses the
+      dev-dashboard arrangement of wordmark, stat cards, line chart; the limits are the page.
+      OWN-WORLD: a darkroom under safelight. Warm near-black ground, photographic paper as the
+      only bright field, one amber safelight accent, film-rebate edge strips carrying labels,
+      grain over everything, calibrated step wedges as the measuring instrument.
+      STORY: the visitor glances from two metres, sees how much unexposed paper is left, and
+      knows whether to start the next task.
+      FIRST VIEWPORT: rebate strip across the top; beneath it the limit sheets at full width,
+      each window a step wedge with a two-digit density number and its reset time. History,
+      cost and tables sit below.
+      FORM: darkroom densitometry, candidate 6 of the grounded list, seed key 053bf233.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
+      review, the verdict, and DESIGN.md
+    -->
+    <div class="rebate" role="banner">
+      <span class="rebate-mark">AGENTMETER</span>
+      <span class="rebate-perf" aria-hidden="true"></span>
+      <span id="timezone" class="rebate-zone"></span>
+      <span class="rebate-perf" aria-hidden="true"></span>
+      <span id="live-mount" class="rebate-lamp"></span>
+    </div>
     <main>
-      <section id="limits" class="limits" aria-label="Usage limits" hidden></section>
-      <p id="status" role="status">Loading local usage…</p>
+      <section id="limits" aria-label="Usage limits" hidden></section>
+      <p id="status" role="status">Reading local session logs…</p>
       <section id="dashboard" hidden>
-        <dl class="totals" aria-label="Usage totals">
-          <div><dt id="input-total">—</dt><dd>Input tokens</dd></div>
-          <div><dt id="output-total">—</dt><dd>Output tokens</dd></div>
-          <div><dt id="cache-read-total">—</dt><dd>Cache read tokens</dd></div>
-          <div><dt id="cost-total">—</dt><dd>Estimated cost</dd></div>
-        </dl>
-        <p id="pricing-warning" class="warning" hidden></p>
-        <section class="panel">
-          <div class="panel-heading">
-            <h2>Tokens over time</h2>
-            <span id="timezone" class="timezone"></span>
-          </div>
-          <svg id="chart" viewBox="0 0 900 280" role="img" aria-label="Daily token usage chart"></svg>
+        <section class="sheet strip-sheet">
+          <header class="sheet-head">
+            <h2>Exposure history</h2>
+            <nav aria-label="Usage range">
+              <button data-range="7d">7d</button>
+              <button data-range="30d" class="active">30d</button>
+              <button data-range="all">All</button>
+            </nav>
+          </header>
+          <div id="chart" class="teststrip" role="img" aria-label="Daily token usage as a density strip"></div>
+          <p class="strip-legend"><span>lighter, less used</span><span>denser, more used</span></p>
         </section>
-        <div class="tables">
-          <section class="panel">
-            <div class="panel-heading"><h2>By agent</h2></div>
+        <dl class="readouts" aria-label="Usage totals">
+          <div><dt>Input</dt><dd id="input-total">—</dd></div>
+          <div><dt>Output</dt><dd id="output-total">—</dd></div>
+          <div><dt>Cache read</dt><dd id="cache-read-total">—</dd></div>
+          <div><dt>Cost</dt><dd id="cost-total">—</dd></div>
+        </dl>
+        <p id="pricing-warning" class="notice" hidden></p>
+        <div class="logs">
+          <section class="sheet">
+            <header class="sheet-head"><h2>By agent</h2></header>
             <table><thead><tr><th>Source</th><th>Tokens</th><th>Cost</th></tr></thead><tbody id="source-rows"></tbody></table>
           </section>
-          <section class="panel">
-            <div class="panel-heading"><h2>By model</h2></div>
+          <section class="sheet">
+            <header class="sheet-head"><h2>By model</h2></header>
             <table><thead><tr><th>Model</th><th>Tokens</th><th>Cost</th></tr></thead><tbody id="model-rows"></tbody></table>
           </section>
         </div>
