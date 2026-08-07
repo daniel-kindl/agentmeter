@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/daniel-kindl/agentmeter/internal/discovery"
+	"github.com/daniel-kindl/agentmeter/internal/limits"
 	"github.com/daniel-kindl/agentmeter/internal/scanner"
 	"github.com/daniel-kindl/agentmeter/internal/store"
 	internalweb "github.com/daniel-kindl/agentmeter/internal/web"
@@ -35,7 +36,7 @@ type application struct {
 	openStore      func(context.Context, string) (*store.Store, error)
 	discoverFiles  func() ([]discovery.File, error)
 	scanFiles      func(context.Context, *store.Store, []discovery.File) (scanner.Result, error)
-	handler        func(*store.Store) http.Handler
+	handler        func(*store.Store, *limits.Service) http.Handler
 }
 
 func main() {
@@ -178,7 +179,7 @@ func (app application) runServe(args []string) int {
 	if !writef(app.stdout, "serving on http://%s\n", address) {
 		return 1
 	}
-	if err := app.listenAndServe(address, app.handler(database)); err != nil {
+	if err := app.listenAndServe(address, app.handler(database, &limits.Service{Store: database})); err != nil {
 		writef(app.stderr, "serve: %v\n", err)
 		return 1
 	}

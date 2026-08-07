@@ -74,13 +74,12 @@ func (c *Claude) Fetch(ctx context.Context, _ time.Time) ([]limits.Window, error
 	windows := []limits.Window{}
 	for _, candidate := range []struct {
 		kind   limits.Kind
-		label  string
 		window *claudeWindow
 	}{
-		{limits.KindFiveHour, "5-hour session", usage.FiveHour},
-		{limits.KindSevenDay, "Weekly (all models)", usage.SevenDay},
-		{limits.KindSevenDayOpus, "Weekly (Opus)", usage.SevenDayOpus},
-		{limits.KindSevenDaySonnet, "Weekly (Sonnet)", usage.SevenDaySonnet},
+		{limits.KindFiveHour, usage.FiveHour},
+		{limits.KindSevenDay, usage.SevenDay},
+		{limits.KindSevenDayOpus, usage.SevenDayOpus},
+		{limits.KindSevenDaySonnet, usage.SevenDaySonnet},
 	} {
 		// A null window means the plan has no such limit, which is different
 		// from a limit sitting at zero. Omit it rather than reporting 0%.
@@ -89,7 +88,6 @@ func (c *Claude) Fetch(ctx context.Context, _ time.Time) ([]limits.Window, error
 		}
 		windows = append(windows, limits.Window{
 			Kind:        candidate.kind,
-			Label:       candidate.label,
 			Utilization: percentage(*candidate.window.Utilization),
 			ResetsAt:    parseReset(candidate.window.ResetsAt),
 		})

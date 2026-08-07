@@ -80,8 +80,10 @@ func TestClaudeFetchMapsEveryReportedWindow(t *testing.T) {
 	if len(windows) != 3 {
 		t.Fatalf("windows = %+v, want three", windows)
 	}
+	// Labels are assigned by the limits package, not here, so that a window
+	// rendered from cache reads the same as a freshly fetched one.
 	block := windowOf(t, windows, limits.KindFiveHour)
-	if block.Utilization != 33 || block.Label != "5-hour session" {
+	if block.Utilization != 33 {
 		t.Fatalf("five-hour = %+v", block)
 	}
 	wantReset := time.Date(2026, 8, 7, 15, 0, 0, 528743000, time.UTC)

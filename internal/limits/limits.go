@@ -1,6 +1,23 @@
 package limits
 
-import "time"
+import (
+	"context"
+	"time"
+)
+
+// Provider fetches authoritative limit windows for one agent.
+//
+// Implementations leave the machine and read local agent credentials, so they
+// are constructed only when the operator opts in. A provider returns labelled
+// nothing: labels belong to this package so that a window rendered from cache
+// reads identically to one just fetched.
+type Provider interface {
+	// Source names the agent, matching the source column of usage events.
+	Source() string
+	// Fetch returns the agent's current windows. now stamps windows whose
+	// reset the vendor reports as a duration rather than an instant.
+	Fetch(ctx context.Context, now time.Time) ([]Window, error)
+}
 
 // Kind identifies one usage limit window.
 type Kind string
@@ -60,4 +77,24 @@ func utilization(used, budget int64) float64 {
 		return 0
 	}
 	return min(float64(used)/float64(budget)*100, 100)
+}
+
+// liveLabel names a window the way the agent that enforces it does, so the
+// dashboard matches what /usage and /status show.
+func liveLabel(sourceName string, kind Kind) string {
+	claude := map[Kind]string{
+		KindFiveHour:       "5-hour session",
+		KindSevenDay:       "Weekly (all models)",
+		KindSevenDayOpus:   "Weekly (Opus)",
+		KindSevenDaySonnet: "Weekly (Sonnet)",
+	}
+	codex := map[Kind]string{
+		KindFiveHour: "5-hour limit",
+		KindSevenDay: "Weekly limit",
+	}
+	bySource := map[string]map[Kind]string{"claude": claude, "codex": codex}
+	if label, ok := bySource[sourceName][kind]; ok {
+		return label
+	}
+	return string(kind)
 }

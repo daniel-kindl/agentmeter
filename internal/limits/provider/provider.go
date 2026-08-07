@@ -22,15 +22,11 @@ const maxResponseSize = 1 << 20
 // Provider fetches the current limit windows for one agent.
 //
 // Implementations must never place a credential in a returned error: those
-// messages are rendered on the dashboard and stored in nothing, but they are
-// still operator-visible text.
-type Provider interface {
-	// Source names the agent, matching the source column of usage events.
-	Source() string
-	// Fetch returns the agent's current windows. now stamps windows whose
-	// reset is reported as a duration rather than an instant.
-	Fetch(ctx context.Context, now time.Time) ([]limits.Window, error)
-}
+// messages reach the dashboard, and they are operator-visible text.
+//
+// The interface itself lives in the limits package so that the report service
+// can consume providers without importing this one.
+type Provider = limits.Provider
 
 // fetchJSON issues one authenticated GET and decodes the body into target.
 func fetchJSON(ctx context.Context, client *http.Client, vendor, url string, headers map[string]string, target any) error {

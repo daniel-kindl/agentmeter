@@ -93,10 +93,10 @@ func (c *Codex) Fetch(ctx context.Context, now time.Time) ([]limits.Window, erro
 
 	windows := []limits.Window{}
 	for _, snapshot := range usage.RateLimits {
-		if window, ok := codexLimitWindow(limits.KindFiveHour, "5-hour limit", snapshot.Primary, now); ok {
+		if window, ok := codexLimitWindow(limits.KindFiveHour, snapshot.Primary, now); ok {
 			windows = append(windows, window)
 		}
-		if window, ok := codexLimitWindow(limits.KindSevenDay, "Weekly limit", snapshot.Secondary, now); ok {
+		if window, ok := codexLimitWindow(limits.KindSevenDay, snapshot.Secondary, now); ok {
 			windows = append(windows, window)
 		}
 		// Later entries describe additional limits such as workspace caps.
@@ -111,13 +111,12 @@ func (c *Codex) Fetch(ctx context.Context, now time.Time) ([]limits.Window, erro
 	return windows, nil
 }
 
-func codexLimitWindow(kind limits.Kind, label string, window *codexWindow, now time.Time) (limits.Window, bool) {
+func codexLimitWindow(kind limits.Kind, window *codexWindow, now time.Time) (limits.Window, bool) {
 	if window == nil || window.UsedPercent == nil {
 		return limits.Window{}, false
 	}
 	result := limits.Window{
 		Kind:        kind,
-		Label:       label,
 		Utilization: percentage(*window.UsedPercent),
 	}
 	if window.ResetsInSeconds != nil && *window.ResetsInSeconds >= 0 {

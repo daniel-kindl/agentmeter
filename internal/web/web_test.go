@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/daniel-kindl/agentmeter/internal/limits"
 	"github.com/daniel-kindl/agentmeter/internal/source"
 	"github.com/daniel-kindl/agentmeter/internal/store"
 	internalweb "github.com/daniel-kindl/agentmeter/internal/web"
@@ -33,7 +34,7 @@ func TestHandler(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			request := httptest.NewRequest(http.MethodGet, tt.path, nil)
 
-			internalweb.Handler(nil).ServeHTTP(recorder, request)
+			internalweb.Handler(nil, nil).ServeHTTP(recorder, request)
 
 			if recorder.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d", recorder.Code, tt.wantStatus)
@@ -58,8 +59,47 @@ func TestDashboardAPI(t *testing.T) {
 		t.Fatalf("insert event: %v", err)
 	}
 	recorder := httptest.NewRecorder()
-	internalweb.Handler(database).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/dashboard?range=all", nil))
+	internalweb.Handler(database, nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/dashboard?range=all", nil))
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"input_tokens":10`) {
 		t.Fatalf("response = %d %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestLimitsAPI(t *testing.T) {
+	t.Parallel()
+
+	database, err := store.Open(context.Background(), ":memory:")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	event := source.UsageEvent{Timestamp: time.Now().UTC(), Source: "claude", SessionID: "session", Model: "claude-sonnet-4", InputTokens: 10, DedupeKey: "event"}
+	if _, err := database.InsertUsageEvents(context.Background(), []source.UsageEvent{event}); err != nil {
+		t.Fatalf("insert event: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	handler := internalweb.Handler(database, &limits.Service{Store: database})
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/limits", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"mode":"estimated"`) || !strings.Contains(body, `"kind":"5h"`) {
+		t.Fatalf("body = %s", body)
+	}
+}
+
+// Without the live flag there is no limit service, and the endpoint says so
+// rather than pretending the account has no limits.
+func TestLimitsAPIWithoutAService(t *testing.T) {
+	t.Parallel()
+
+	recorder := httptest.NewRecorder()
+	internalweb.Handler(nil, nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/limits", nil))
+
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", recorder.Code)
 	}
 }
