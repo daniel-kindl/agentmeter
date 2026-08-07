@@ -84,6 +84,24 @@ CREATE INDEX usage_events_message_id_idx ON usage_events(message_id);`
 		if _, err := tx.ExecContext(ctx, "PRAGMA user_version = 2"); err != nil {
 			return fmt.Errorf("record schema version 2: %w", err)
 		}
+		version = 2
+	}
+
+	if version == 2 {
+		const migration = `CREATE TABLE limit_snapshots (
+    source TEXT NOT NULL,
+    window_kind TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    utilization REAL NOT NULL CHECK (utilization >= 0),
+    resets_at TEXT,
+    PRIMARY KEY (source, window_kind)
+);`
+		if _, err := tx.ExecContext(ctx, migration); err != nil {
+			return fmt.Errorf("apply schema version 3: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, "PRAGMA user_version = 3"); err != nil {
+			return fmt.Errorf("record schema version 3: %w", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
