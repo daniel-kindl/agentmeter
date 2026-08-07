@@ -3,10 +3,18 @@
 const statusNode = document.querySelector("#status");
 const dashboardNode = document.querySelector("#dashboard");
 const limitsNode = document.querySelector("#limits");
-const number = new Intl.NumberFormat();
-const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
+// Numbers are formatted in English because they sit inside English copy: a
+// machine-locale "574,7 tis." reads as a defect next to "against your busiest
+// window". Times keep the machine locale, where the 12- or 24-hour convention
+// is genuinely regional and the value stands on its own.
+const number = new Intl.NumberFormat("en");
+const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 const clock = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
 const dayClock = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+
+// Widest a single day's bar may grow. Without a cap, a first-run history of two
+// or three days renders as a few enormous slabs that read as a broken chart.
+const maxBarWidth = 56;
 
 // How often the browser re-reads the limits endpoint. The server caches provider
 // responses well past this, so polling costs a local request and nothing more.
@@ -28,11 +36,20 @@ function setText(selector, value) {
   document.querySelector(selector).textContent = value;
 }
 
+// Costs arrive with full micro-dollar precision. Anything a person would read
+// as money is shown as money; sub-cent totals keep their digits rather than
+// rounding away to nothing.
+function money(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return `$${value}`;
+  return amount >= 0.005 ? `$${amount.toFixed(2)}` : `$${value}`;
+}
+
 function renderTable(selector, rows) {
   const body = document.querySelector(selector);
   body.replaceChildren(...rows.map((row) => {
     const tr = document.createElement("tr");
-    [row.name, number.format(tokens(row)), `$${row.cost_usd}`].forEach((value) => {
+    [row.name, number.format(tokens(row)), money(row.cost_usd)].forEach((value) => {
       const cell = document.createElement("td");
       cell.textContent = value;
       tr.append(cell);
@@ -47,14 +64,16 @@ function renderChart(days) {
   if (days.length === 0) return;
   const values = days.map(tokens);
   const maximum = Math.max(...values, 1);
-  const width = 860 / Math.max(days.length, 1);
+  const slot = 860 / Math.max(days.length, 1);
+  const width = Math.min(Math.max(slot - 3, 2), maxBarWidth);
+  const inset = (slot - width) / 2;
   const namespace = "http://www.w3.org/2000/svg";
   days.forEach((day, index) => {
     const height = (tokens(day) / maximum) * 220;
     const rect = document.createElementNS(namespace, "rect");
-    rect.setAttribute("x", String(20 + index * width));
+    rect.setAttribute("x", String(20 + inset + index * slot));
     rect.setAttribute("y", String(245 - height));
-    rect.setAttribute("width", String(Math.max(width - 3, 2)));
+    rect.setAttribute("width", String(width));
     rect.setAttribute("height", String(height));
     rect.setAttribute("rx", "3");
     const title = document.createElementNS(namespace, "title");
@@ -69,8 +88,13 @@ function render(data) {
   setText("#input-total", number.format(totals.input_tokens));
   setText("#output-total", number.format(totals.output_tokens));
   setText("#cache-read-total", number.format(totals.cache_read_input_tokens));
-  setText("#cost-total", `$${totals.cost_usd}`);
-  setText("#timezone", data.timezone);
+  setText("#cost-total", money(totals.cost_usd));
+  // Go reports an unset TZ as the literal "Local", which names nothing. The
+  // browser knows the real zone, so use it rather than showing a placeholder.
+  const zone = data.timezone === "Local" || !data.timezone
+    ? Intl.DateTimeFormat().resolvedOptions().timeZone
+    : data.timezone;
+  setText("#timezone", zone);
   const warning = document.querySelector("#pricing-warning");
   warning.hidden = data.cost_complete;
   warning.textContent = data.cost_complete ? "" : `Cost excludes unpriced models: ${data.unpriced_models.join(", ")}`;
