@@ -2,7 +2,15 @@
 
 const statusNode = document.querySelector("#status");
 const dashboardNode = document.querySelector("#dashboard");
+const limitsNode = document.querySelector("#limits");
 const number = new Intl.NumberFormat();
+const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
+const clock = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
+const dayClock = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+
+// How often the browser re-reads the limits endpoint. The server caches provider
+// responses well past this, so polling costs a local request and nothing more.
+const limitRefreshMs = 60_000;
 
 document.querySelectorAll("[data-range]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -73,6 +81,88 @@ function render(data) {
   dashboardNode.hidden = false;
 }
 
+function element(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function formatReset(value) {
+  const at = new Date(value);
+  const withinDay = at.getTime() - Date.now() < 24 * 60 * 60 * 1000;
+  return `resets ${(withinDay ? clock : dayClock).format(at)}`;
+}
+
+function originBadge(limits) {
+  if (limits.origin === "live") return limits.stale ? { text: "stale", className: "stale" } : { text: "live", className: "live" };
+  if (limits.origin === "unavailable") return { text: "unavailable", className: "unavailable" };
+  return { text: "estimate", className: "" };
+}
+
+// Estimated windows are measured against local history rather than a published
+// quota, so they say what they are being compared to.
+function meterNote(window, origin) {
+  const parts = [];
+  if (window.resets_at) parts.push(formatReset(window.resets_at));
+  if (origin === "estimated" && window.budget_tokens) {
+    parts.push(`${compact.format(window.used_tokens)} / ${compact.format(window.budget_tokens)} tokens vs your busiest window`);
+  }
+  return parts.join(" · ");
+}
+
+function renderMeter(window, origin) {
+  const row = element("div", "meter-row");
+  const label = element("div", "meter-label");
+  label.append(element("span", null, window.label), element("strong", null, `${Math.round(window.utilization)}%`));
+
+  const track = element("div", "meter");
+  const severity = window.utilization >= 90 ? " danger" : window.utilization >= 75 ? " warn" : "";
+  const fill = element("div", `meter-fill${severity}`);
+  fill.style.width = `${Math.min(Math.max(window.utilization, 0), 100)}%`;
+  track.append(fill);
+
+  row.append(label, track);
+  const note = meterNote(window, origin);
+  if (note) row.append(element("p", "meter-note", note));
+  return row;
+}
+
+function renderLimitPanel(limits) {
+  const panel = element("section", "panel limit-panel");
+  const heading = element("div", "panel-heading");
+  const title = element("div");
+  title.append(element("p", "eyebrow", limits.source.toUpperCase()), element("h2", null, "Usage limits"));
+  const badge = originBadge(limits);
+  heading.append(title, element("span", `origin-badge ${badge.className}`.trim(), badge.text));
+  panel.append(heading);
+
+  const meters = element("div", "meters");
+  meters.append(...limits.windows.map((window) => renderMeter(window, limits.origin)));
+  panel.append(meters);
+
+  if (limits.message) panel.append(element("p", "limit-message", limits.message));
+  return panel;
+}
+
+function renderLimits(data) {
+  limitsNode.replaceChildren(...data.sources.map(renderLimitPanel));
+  limitsNode.hidden = data.sources.length === 0;
+}
+
+// Limits load independently of the token dashboard. A limits failure must never
+// blank the usage history, and vice versa.
+async function loadLimits() {
+  try {
+    const response = await fetch("/api/v1/limits");
+    if (!response.ok) throw new Error("request failed");
+    renderLimits(await response.json());
+  } catch (_) {
+    limitsNode.replaceChildren();
+    limitsNode.hidden = true;
+  }
+}
+
 async function loadDashboard(range) {
   statusNode.hidden = false;
   statusNode.textContent = "Loading local usage…";
@@ -93,3 +183,5 @@ async function loadDashboard(range) {
 }
 
 loadDashboard("30d");
+loadLimits();
+setInterval(loadLimits, limitRefreshMs);
