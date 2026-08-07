@@ -132,7 +132,7 @@ h2 {
 }
 
 /* Limits: the page. */
-#limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); gap: 18px; padding-top: 24px; }
+#limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); align-items: start; gap: 18px; padding-top: 24px; }
 .limit-bar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 
 .wedges { display: grid; gap: 22px; margin-top: 22px; }
@@ -142,46 +142,27 @@ h2 {
 
 .wedge-row { display: flex; align-items: center; gap: 18px; margin-top: 10px; }
 
-/* The step wedge. Unexposed paper is the bright field and reads as headroom;
-   the exposed span is spent. Density carries the value at a distance, the
-   numeral carries it exactly. */
+/* A step tablet, not a filled track. Twenty discrete patches carry a fixed
+   graduation that does not move with the value; exposure blackens them from the
+   left, and the reading is which patch is the last light one. */
 .wedge {
-  position: relative;
+  display: flex;
+  gap: 2px;
   flex: 1;
   height: 52px;
+  padding: 3px;
   border: 1px solid var(--edge);
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--paper), var(--paper-dim));
-  overflow: hidden;
+  background: #070504;
 }
-.wedge-exposed {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--exposed-width, 0%);
-  background: linear-gradient(180deg, #120d09, var(--exposed));
-  transform-origin: left center;
+.wedge-step {
+  flex: 1;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px rgb(10 7 5 / .35);
 }
-/* The safelight catches the wet edge where exposure stops. */
-.wedge-exposed::after {
-  content: "";
-  position: absolute;
-  inset: 0 -1px 0 auto;
-  width: 2px;
-  background: var(--safelight);
-  box-shadow: 0 0 10px 1px rgb(255 154 60 / .75);
-}
-/* Calibration marks every tenth, so the strip reads as an instrument rather
-   than a bar. They must stay visible on the exposed field too: a fully spent
-   window is a black strip, and without its marks it reads as an empty box
-   instead of a strip that has run out of paper. */
-.wedge-steps {
-  position: absolute;
-  inset: 0;
-  background-image:
-    repeating-linear-gradient(90deg, rgb(255 231 199 / .16) 0 1px, transparent 1px 10%),
-    repeating-linear-gradient(90deg, rgb(60 44 28 / .5) 0 1px, transparent 1px 10%);
-  background-clip: border-box;
-}
+.wedge-step.is-exposed { background: var(--exposed); box-shadow: inset 0 0 0 1px rgb(255 231 199 / .07); }
+/* The safelight catches the wet edge, the one patch mid-exposure. */
+.wedge-step.is-edge { box-shadow: inset 0 0 0 1px rgb(255 154 60 / .55), 0 0 11px -2px rgb(255 154 60 / .7); }
 
 .wedge-value {
   min-width: 3.6ch;
@@ -204,11 +185,13 @@ h2 {
 .wedge-note b { font-family: var(--measure); font-weight: 400; font-variant-numeric: tabular-nums; color: var(--paper-dim); }
 
 /* An estimated sheet is an uncalibrated instrument, and says so in its frame
-   rather than only in its caption. The paper field itself stays solid: hatching
-   it read as a disabled control rather than as a reading of lower authority. */
+   rather than only in its caption. The paper patches stay solid: hatching them
+   read as a disabled control rather than as a reading of lower authority. */
 .sheet.is-estimated { border-style: dashed; }
 .sheet.is-estimated .wedge { border-style: dashed; }
 .sheet.is-estimated .wedge-value { color: var(--paper-dim); }
+.wedge-reset.is-idle { color: var(--muted); }
+.lamp-error { max-width: 44ch; color: #e0c07a; font-size: .72rem; line-height: 1.45; text-align: right; }
 
 .lamp {
   display: inline-flex;
@@ -237,9 +220,9 @@ h2 {
 .lamp:has(input:checked)::before { background: var(--safelight); box-shadow: 0 0 9px 1px rgb(255 154 60 / .85); }
 .lamp:has(input:focus-visible) { outline: 2px solid var(--safelight); outline-offset: 2px; }
 .lamp:has(input:disabled) { opacity: .5; cursor: progress; }
-.origin-chip { padding: 4px 9px; border: 1px solid var(--edge); border-radius: 2px; font-family: var(--measure); font-size: .62rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
-.origin-chip.live { border-color: var(--safelight-dim); background: #21140a; color: var(--safelight); }
-.origin-chip.stale, .origin-chip.unavailable { border-color: #5c4a1e; background: #211a0c; color: #e0c07a; }
+.origin-chip { padding: 5px 11px; border: 1px solid var(--edge); border-radius: 2px; font-family: var(--measure); font-size: .74rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--paper-dim); }
+.origin-chip.live { border-color: var(--safelight); background: #2b1a0b; color: #ffb262; }
+.origin-chip.stale, .origin-chip.unavailable { border-color: #8a6f2c; background: #241c0d; color: #f2d68f; }
 
 /* History as a test strip: one exposure per day, read by density. A bar chart
    at this size cannot be read from across a room; a tonal run can. */
@@ -275,7 +258,7 @@ button:focus-visible { outline: 2px solid var(--safelight); outline-offset: 2px;
 .readouts dt { font-family: var(--measure); font-size: .64rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
 .readouts dd { margin: 9px 0 0; font-family: var(--measure); font-size: clamp(1.15rem, 2.4vw, 1.6rem); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 
-.notice { margin: 16px 0 0; padding: 12px 15px; border: 1px solid #5c4a1e; border-radius: 3px; background: #1b1409; color: #e0c07a; font-size: .8rem; }
+.notice { max-width: 68ch; margin: 16px 0 0; padding: 12px 15px; border: 1px solid #5c4a1e; border-radius: 3px; background: #1b1409; color: #e0c07a; font-size: .8rem; }
 
 .logs { display: grid; grid-template-columns: 1fr 1.35fr; gap: 18px; }
 .logs .sheet { margin-top: 18px; }
@@ -287,11 +270,11 @@ td:not(:first-child) { font-family: var(--measure); font-variant-numeric: tabula
 
 /* One authored moment: the exposure develops in, the way a print comes up in
    the tray. It happens once on load, not on every poll. */
-@keyframes develop { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.wedge-exposed { animation: develop .9s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes develop { from { opacity: 0; filter: brightness(.35); } to { opacity: 1; filter: none; } }
+#limits:not(.is-settled) .wedge { animation: develop .9s cubic-bezier(.16, 1, .3, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .wedge-exposed { animation: none; }
+  #limits .wedge { animation: none; }
 }
 
 @media (max-width: 900px) {

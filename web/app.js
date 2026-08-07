@@ -7,27 +7,37 @@ const liveMount = document.querySelector("#live-mount");
 
 // Numbers are formatted in English because they sit inside English copy: a
 // machine-locale "574,7 tis." reads as a defect next to "against your busiest
-// window". Times keep the machine locale, where the 12- or 24-hour convention
-// is genuinely regional and the value stands on its own.
+// window". Weekday names are copy too, and follow the page. The 24-hour clock
+// stays because en-GB keeps it.
 const number = new Intl.NumberFormat("en");
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
-// Weekday names are copy, not a numeric convention, so they follow the page's
-// English rather than the machine locale: "resets út 05:00" is a defect in an
-// otherwise English sentence. The 24-hour clock stays because en-GB keeps it.
 const clock = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 const dayClock = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
 
-// How often the browser re-reads the limits endpoint. This page is meant to be
-// left open on a second screen, so it has to stay current without being
-// touched. The server caches provider responses well past this interval, so
-// polling costs a local request and nothing more.
+// This page is left open on a second screen, so everything on it refreshes
+// itself. Limits move fastest and lead; the history behind them changes slowly
+// enough to reread less often. The server caches provider responses well past
+// either interval, so polling costs local requests and nothing more.
 const limitRefreshMs = 60_000;
+const historyRefreshMs = 180_000;
+
+// Steps on the wedge. A step tablet reads by which patch is the last light
+// one, so the strip is built from discrete patches rather than a filled track.
+const wedgeSteps = 20;
+
+// How many unpriced models the warning names before it counts the rest.
+const namedModelLimit = 3;
+
+let activeRange = "30d";
+let mountedLive = null;
+let limitsMounted = false;
 
 document.querySelectorAll("[data-range]").forEach((button) => {
   button.addEventListener("click", () => {
     document.querySelectorAll("[data-range]").forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
-    loadDashboard(button.dataset.range);
+    activeRange = button.dataset.range;
+    loadDashboard();
   });
 });
 
@@ -78,9 +88,6 @@ function renderTable(selector, rows) {
   }));
 }
 
-// The daily history is a test strip: one exposure per day, read by density.
-// A bar chart this small cannot be read from across a room, and this page is
-// meant to be glanced at rather than studied.
 // The API returns only days that recorded usage. A strip drawn straight from
 // that list puts two distant days side by side and silently misreads as
 // continuous time, so idle days are filled back in at zero.
@@ -97,6 +104,9 @@ function continuousDays(days) {
   return filled;
 }
 
+// The daily history is a test strip: one exposure per day, read by density.
+// A bar chart this small cannot be read from across a room, and this page is
+// meant to be glanced at rather than studied.
 function renderChart(days) {
   const chart = document.querySelector("#chart");
   chart.replaceChildren();
@@ -123,22 +133,58 @@ function originChip(limits) {
 }
 
 // Note text alternates prose and measured values. The measured segments are set
-// in the mono face so a reset time or token count lines up with the wedges
-// above it instead of drifting with the surrounding sentence.
+// in the mono face so a token count lines up with the wedges above it instead
+// of drifting with the surrounding sentence.
 function noteSegments(window, origin) {
-  const segments = [];
-  if (origin === "estimated" && window.budget_tokens) {
-    segments.push(
-      { value: `${compact.format(window.used_tokens)} / ${compact.format(window.budget_tokens)}` },
-      " tokens, against your busiest window so far",
-    );
+  if (origin !== "estimated" || !window.budget_tokens) return [];
+  return [
+    { value: `${compact.format(window.used_tokens)} / ${compact.format(window.budget_tokens)}` },
+    " tokens, against your busiest window so far",
+  ];
+}
+
+// A step tablet: discrete patches whose density is fixed by position, read by
+// finding the last light one. Exposure blackens from the left, so the patches
+// nearest maximum density go first.
+function renderStrip(used) {
+  const strip = element("div", "wedge");
+  for (let index = 0; index < wedgeSteps; index += 1) {
+    const from = (index * 100) / wedgeSteps;
+    const to = ((index + 1) * 100) / wedgeSteps;
+    const step = element("div", "wedge-step");
+    // Fixed graduation across the strip, lightest at the unexposed end. It does
+    // not move with the value; that is what makes it a calibration rather than
+    // a fill. The spread has to be wide enough to read across the patches that
+    // remain, or the strip is a segmented bar wearing a tablet's shape.
+    const paper = `hsl(34 22% ${58 + (index / (wedgeSteps - 1)) * 36}%)`;
+    if (used >= to) {
+      step.classList.add("is-exposed");
+    } else if (used > from) {
+      const crossing = ((used - from) / (to - from)) * 100;
+      step.classList.add("is-edge");
+      step.style.background = `linear-gradient(90deg, var(--exposed) ${crossing}%, ${paper} ${crossing}%)`;
+    } else {
+      step.style.background = paper;
+    }
+    strip.append(step);
   }
-  return segments;
+  return strip;
 }
 
 function renderWedge(window, origin) {
-  const row = element("div", "wedge-row");
+  const group = element("div", "wedge-group");
   const used = Math.min(Math.max(window.utilization, 0), 100);
+
+  const head = element("div", "wedge-head");
+  head.append(element("span", "wedge-name", window.label));
+  // The reset slot always renders. An idle agent has no block open, and
+  // dropping the line entirely loses half of what the row promises to say.
+  head.append(window.resets_at
+    ? element("span", "wedge-reset", `resets ${formatReset(window.resets_at)}`)
+    : element("span", "wedge-reset is-idle", "no block open"));
+  group.append(head);
+
+  const row = element("div", "wedge-row");
   // Only a live reading earns the alarm. An estimate sits against the busiest
   // window in local history, so it reaches 100% the moment the current window
   // is the busiest one — an artefact of a thin baseline, not a limit being
@@ -147,21 +193,10 @@ function renderWedge(window, origin) {
     if (used >= 90) row.classList.add("is-critical");
     else if (used >= 75) row.classList.add("is-warn");
   }
-
-  const track = element("div", "wedge");
-  const exposed = element("div", "wedge-exposed");
-  exposed.style.setProperty("--exposed-width", `${used}%`);
-  track.append(exposed, element("div", "wedge-steps"));
-
   const value = element("div", "wedge-value", String(Math.round(used)));
   value.append(element("span", null, "%"));
-  row.append(track, value);
-
-  const group = element("div", "wedge-group");
-  const head = element("div", "wedge-head");
-  head.append(element("span", "wedge-name", window.label));
-  if (window.resets_at) head.append(element("span", "wedge-reset", `resets ${formatReset(window.resets_at)}`));
-  group.append(head, row);
+  row.append(renderStrip(used), value);
+  group.append(row);
 
   const segments = noteSegments(window, origin);
   if (segments.length > 0) {
@@ -189,10 +224,24 @@ function renderLimitSheet(limits) {
   return sheet;
 }
 
+// Limits are the reason this page exists, so a failure says what happened and
+// what to do rather than leaving the history as the first thing on screen.
+function renderLimitFailure(message) {
+  const sheet = element("section", "sheet is-estimated");
+  const head = element("header", "sheet-head");
+  head.append(element("h2", null, "Usage limits"), element("span", "origin-chip unavailable", "no reading"));
+  sheet.append(head, element("p", "wedge-note", message));
+  limitsNode.replaceChildren(sheet);
+  limitsNode.hidden = false;
+}
+
 // The safelight lamp is the live switch. It reads local agent credentials and
 // contacts the configured endpoints, so the control says so rather than only
-// showing that it is on.
+// showing that it is on. It is rebuilt only when its state actually changes,
+// because replacing it on every poll would take keyboard focus with it.
 function renderLamp(data) {
+  if (mountedLive === data.live) return;
+  mountedLive = data.live;
   const label = element("label", "lamp");
   const box = document.createElement("input");
   box.type = "checkbox";
@@ -206,14 +255,30 @@ function renderLamp(data) {
 }
 
 function renderLimits(data) {
-  limitsNode.replaceChildren(...data.sources.map(renderLimitSheet));
-  limitsNode.hidden = data.sources.length === 0;
+  if (data.sources.length === 0) {
+    renderLimitFailure("No agent reported a limit. Run agentmeter scan, or turn on live readings.");
+  } else {
+    limitsNode.replaceChildren(...data.sources.map(renderLimitSheet));
+    limitsNode.hidden = false;
+  }
+  // The develop animation belongs to arriving at the page, not to every poll.
+  // The class is withheld on the first render so the print comes up once, then
+  // applied so a refresh replaces values without re-exposing the strip.
+  if (limitsMounted) limitsNode.classList.add("is-settled");
+  limitsMounted = true;
   if (data.configurable) renderLamp(data);
   else liveMount.replaceChildren();
 }
 
+function setLiveError(message) {
+  const existing = liveMount.parentElement.querySelector(".lamp-error");
+  if (existing) existing.remove();
+  if (message) liveMount.parentElement.insertBefore(element("span", "lamp-error", message), liveMount);
+}
+
 async function setLive(enabled, control) {
   control.disabled = true;
+  setLiveError("");
   try {
     const response = await fetch("/api/v1/limits/live", {
       method: "PUT",
@@ -223,10 +288,18 @@ async function setLive(enabled, control) {
     if (!response.ok) throw new Error("request failed");
     // The server replies with the report the switch produced, so the sheets
     // show the consequence rather than an optimistic guess.
-    renderLimits(await response.json());
+    const data = await response.json();
+    mountedLive = null;
+    renderLimits(data);
+    // Turning the switch on can succeed while the credentials behind it do
+    // not. That reason lives on the source, and saying nothing about it here
+    // would leave the lamp lit over an unchanged reading.
+    const rejected = data.sources.find((source) => source.origin !== "live" && source.message);
+    setLiveError(enabled && rejected ? rejected.message : "");
   } catch (_) {
     control.checked = !enabled;
     control.disabled = false;
+    setLiveError("The preference could not be saved.");
   }
 }
 
@@ -238,8 +311,7 @@ async function loadLimits() {
     if (!response.ok) throw new Error("request failed");
     renderLimits(await response.json());
   } catch (_) {
-    limitsNode.replaceChildren();
-    limitsNode.hidden = true;
+    renderLimitFailure("The limits could not be read from the local server.");
   }
 }
 
@@ -257,7 +329,7 @@ function render(data) {
   setText("#timezone", zone);
   const warning = document.querySelector("#pricing-warning");
   warning.hidden = data.cost_complete;
-  warning.textContent = data.cost_complete ? "" : `Cost excludes unpriced models: ${data.unpriced_models.join(", ")}`;
+  warning.textContent = data.cost_complete ? "" : `Cost excludes unpriced models: ${namedModels(data.unpriced_models)}`;
   renderChart(data.daily);
   renderTable("#source-rows", data.by_source);
   renderTable("#model-rows", data.by_model);
@@ -265,25 +337,40 @@ function render(data) {
   dashboardNode.hidden = false;
 }
 
-async function loadDashboard(range) {
-  statusNode.hidden = false;
-  statusNode.textContent = "Reading local session logs…";
+// An unbounded model list runs the warning across the full width. Naming a few
+// and counting the rest keeps the sentence readable and says the same thing.
+function namedModels(models) {
+  if (models.length <= namedModelLimit) return models.join(", ");
+  const rest = models.length - namedModelLimit;
+  return `${models.slice(0, namedModelLimit).join(", ")}, and ${rest} more`;
+}
+
+// A poll must not throw the page back to its loading state; only a range the
+// operator just chose earns that.
+async function loadDashboard(quiet = false) {
+  if (!quiet) {
+    statusNode.hidden = false;
+    statusNode.textContent = "Reading local session logs…";
+  }
   try {
-    const response = await fetch(`/api/v1/dashboard?range=${encodeURIComponent(range)}`);
+    const response = await fetch(`/api/v1/dashboard?range=${encodeURIComponent(activeRange)}`);
     if (!response.ok) throw new Error("request failed");
     const data = await response.json();
     if (data.daily.length === 0) {
       dashboardNode.hidden = true;
+      statusNode.hidden = false;
       statusNode.textContent = "Nothing recorded yet. Run agentmeter scan, then reload.";
       return;
     }
     render(data);
   } catch (_) {
+    if (quiet) return;
     dashboardNode.hidden = true;
     statusNode.textContent = "The local usage database could not be read.";
   }
 }
 
-loadDashboard("30d");
+loadDashboard();
 loadLimits();
 setInterval(loadLimits, limitRefreshMs);
+setInterval(() => loadDashboard(true), historyRefreshMs);
