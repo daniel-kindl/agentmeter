@@ -5,10 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/daniel-kindl/agentmeter/internal/discovery"
+	"github.com/daniel-kindl/agentmeter/internal/limits"
+	"github.com/daniel-kindl/agentmeter/internal/store"
 )
 
 func TestRunCommands(t *testing.T) {
@@ -127,5 +130,117 @@ func TestRunServeError(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "synthetic listen failure") {
 		t.Errorf("stderr = %q, want listen failure", stderr.String())
+	}
+}
+
+// Serving without --live must construct no provider, so the dashboard reports
+// derived estimates and the process never opens a socket to a vendor.
+func TestRunServeIsOfflineByDefault(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	var gotService *limits.Service
+	app := application{
+		stdout:  &stdout,
+		stderr:  &stderr,
+		version: "test-version",
+		handler: func(_ *store.Store, service *limits.Service) http.Handler {
+			gotService = service
+			return http.NotFoundHandler()
+		},
+		listenAndServe: func(string, http.Handler) error { return nil },
+	}
+
+	if got := app.run([]string{"serve", "--db", ":memory:"}); got != 0 {
+		t.Fatalf("exit code = %d, stderr = %q", got, stderr.String())
+	}
+	if gotService == nil {
+		t.Fatal("no limit service was built")
+	}
+	if len(gotService.Providers) != 0 {
+		t.Fatalf("providers = %d, want none without --live", len(gotService.Providers))
+	}
+	if strings.Contains(stdout.String(), "live limits") {
+		t.Fatalf("stdout announces live limits without the flag: %q", stdout.String())
+	}
+}
+
+func TestRunServeWithLiveBuildsProvidersAndSaysSo(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	var gotService *limits.Service
+	app := application{
+		stdout:      &stdout,
+		stderr:      &stderr,
+		version:     "test-version",
+		userHomeDir: func() (string, error) { return t.TempDir(), nil },
+		handler: func(_ *store.Store, service *limits.Service) http.Handler {
+			gotService = service
+			return http.NotFoundHandler()
+		},
+		listenAndServe: func(string, http.Handler) error { return nil },
+	}
+
+	if got := app.run([]string{"serve", "--db", ":memory:", "--live"}); got != 0 {
+		t.Fatalf("exit code = %d, stderr = %q", got, stderr.String())
+	}
+	if len(gotService.Providers) != 2 {
+		t.Fatalf("providers = %d, want claude and codex", len(gotService.Providers))
+	}
+	// Leaving the machine is the one thing agentmeter does not do quietly.
+	if !strings.Contains(stdout.String(), "live limits enabled") {
+		t.Fatalf("stdout = %q, want a live-limits notice", stdout.String())
+	}
+}
+
+func TestRunServeAcceptsBudgetOverrides(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+	var gotService *limits.Service
+	app := application{
+		stdout:  &stdout,
+		stderr:  &stderr,
+		version: "test-version",
+		handler: func(_ *store.Store, service *limits.Service) http.Handler {
+			gotService = service
+			return http.NotFoundHandler()
+		},
+		listenAndServe: func(string, http.Handler) error { return nil },
+	}
+
+	if got := app.run([]string{"serve", "--db", ":memory:", "--budget-5h", "1900000", "--budget-7d", "20000000"}); got != 0 {
+		t.Fatalf("exit code = %d, stderr = %q", got, stderr.String())
+	}
+	want := limits.Budgets{FiveHour: 1900000, SevenDay: 20000000}
+	if gotService.Budgets != want {
+		t.Fatalf("budgets = %+v, want %+v", gotService.Budgets, want)
+	}
+}
+
+func TestConfigRootsPreferEnvironmentOverrides(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", "/first, /second ,")
+	t.Setenv("CODEX_HOME", "/codex")
+
+	roots := claudeConfigRoots("/home")
+	if len(roots) != 2 || roots[0] != "/first" || roots[1] != "/second" {
+		t.Fatalf("claude roots = %q, want the two configured directories", roots)
+	}
+	if got := codexRoot("/home"); got != "/codex" {
+		t.Fatalf("codex root = %q, want /codex", got)
+	}
+}
+
+func TestConfigRootsFallBackToHome(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("CODEX_HOME", "")
+
+	if roots := claudeConfigRoots("/home"); len(roots) != 1 || roots[0] != filepath.Join("/home", ".claude") {
+		t.Fatalf("claude roots = %q, want the home directory", roots)
+	}
+	if got := codexRoot("/home"); got != filepath.Join("/home", ".codex") {
+		t.Fatalf("codex root = %q, want the home directory", got)
 	}
 }

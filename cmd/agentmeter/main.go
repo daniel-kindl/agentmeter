@@ -14,6 +14,7 @@ import (
 
 	"github.com/daniel-kindl/agentmeter/internal/discovery"
 	"github.com/daniel-kindl/agentmeter/internal/limits"
+	"github.com/daniel-kindl/agentmeter/internal/limits/provider"
 	"github.com/daniel-kindl/agentmeter/internal/scanner"
 	"github.com/daniel-kindl/agentmeter/internal/store"
 	internalweb "github.com/daniel-kindl/agentmeter/internal/web"
@@ -159,9 +160,14 @@ func (app application) runServe(args []string) int {
 	address := serveAddress
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	flags.SetOutput(app.stderr)
-	flags.Usage = func() { writef(app.stderr, "usage: agentmeter serve [--db PATH] [--addr HOST:PORT]\n") }
+	flags.Usage = func() {
+		writef(app.stderr, "usage: agentmeter serve [--db PATH] [--addr HOST:PORT] [--live] [--budget-5h N] [--budget-7d N]\n")
+	}
 	flags.StringVar(&databasePath, "db", databasePath, "SQLite database path")
 	flags.StringVar(&address, "addr", address, "listen address")
+	live := flags.Bool("live", false, "fetch authoritative limits: reads local agent credentials and contacts Anthropic and OpenAI")
+	budgetFiveHour := flags.Int64("budget-5h", 0, "token ceiling for the estimated five-hour window (0 compares against your busiest window)")
+	budgetSevenDay := flags.Int64("budget-7d", 0, "token ceiling for the estimated weekly window (0 compares against your busiest window)")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
 		flags.Usage()
 		return 2
@@ -176,14 +182,46 @@ func (app application) runServe(args []string) int {
 		return 1
 	}
 	defer func() { _ = database.Close() }()
+
+	service := &limits.Service{
+		Store:   database,
+		Budgets: limits.Budgets{FiveHour: *budgetFiveHour, SevenDay: *budgetSevenDay},
+	}
+	if *live {
+		providers, err := app.liveProviders()
+		if err != nil {
+			writef(app.stderr, "serve: locate home directory\n")
+			return 1
+		}
+		service.Providers = providers
+		// Contacting a vendor is the one thing agentmeter does that leaves the
+		// machine, so it announces itself rather than happening quietly.
+		if !writef(app.stdout, "live limits enabled: reading local agent credentials and contacting Anthropic and OpenAI\n") {
+			return 1
+		}
+	}
+
 	if !writef(app.stdout, "serving on http://%s\n", address) {
 		return 1
 	}
-	if err := app.listenAndServe(address, app.handler(database, &limits.Service{Store: database})); err != nil {
+	if err := app.listenAndServe(address, app.handler(database, service)); err != nil {
 		writef(app.stderr, "serve: %v\n", err)
 		return 1
 	}
 	return 0
+}
+
+// liveProviders builds the opt-in authoritative providers. Nothing calls this
+// unless the operator passed --live.
+func (app application) liveProviders() ([]limits.Provider, error) {
+	home, err := app.userHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	return []limits.Provider{
+		provider.NewClaude(claudeConfigRoots(home), app.version),
+		provider.NewCodex(codexRoot(home)),
+	}, nil
 }
 
 func (app application) defaultDatabasePath() (string, error) {
@@ -199,32 +237,42 @@ func (app application) defaultFiles() ([]discovery.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	var claudeRoots []string
-	if configured := os.Getenv("CLAUDE_CONFIG_DIR"); configured != "" {
-		for _, root := range strings.Split(configured, ",") {
-			if root = strings.TrimSpace(root); root != "" {
-				claudeRoots = append(claudeRoots, root)
-			}
-		}
-	} else {
-		claudeRoots = []string{filepath.Join(home, ".claude")}
-		if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-			claudeRoots = append(claudeRoots, filepath.Join(xdg, "claude"))
-		}
-	}
-	claudeFiles, err := discovery.Claude(claudeRoots)
+	claudeFiles, err := discovery.Claude(claudeConfigRoots(home))
 	if err != nil {
 		return nil, err
 	}
-	codexRoot := os.Getenv("CODEX_HOME")
-	if codexRoot == "" {
-		codexRoot = filepath.Join(home, ".codex")
-	}
-	codexFiles, err := discovery.Codex(codexRoot)
+	codexFiles, err := discovery.Codex(codexRoot(home))
 	if err != nil {
 		return nil, err
 	}
 	return append(claudeFiles, codexFiles...), nil
+}
+
+// claudeConfigRoots resolves where Claude Code keeps its data. Session
+// discovery and credential loading must agree on this, so both read it here.
+func claudeConfigRoots(home string) []string {
+	if configured := os.Getenv("CLAUDE_CONFIG_DIR"); configured != "" {
+		var roots []string
+		for _, root := range strings.Split(configured, ",") {
+			if root = strings.TrimSpace(root); root != "" {
+				roots = append(roots, root)
+			}
+		}
+		return roots
+	}
+	roots := []string{filepath.Join(home, ".claude")}
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		roots = append(roots, filepath.Join(xdg, "claude"))
+	}
+	return roots
+}
+
+// codexRoot resolves where the Codex CLI keeps its data.
+func codexRoot(home string) string {
+	if configured := os.Getenv("CODEX_HOME"); configured != "" {
+		return configured
+	}
+	return filepath.Join(home, ".codex")
 }
 
 func ensureDatabaseParent(path string) error {
