@@ -44,7 +44,8 @@ Scope is **required** for `feat`, `fix`, `perf`, and `refactor`; optional elsewh
 
 Adjust this list per project; keep it short enough to memorize:
 
-`scanner`, `parser`, `store`, `web`, `ui`, `pricing`, `cli`, `config`, `hooks`, `deps`
+`scanner`, `parser`, `store`, `web`, `ui`, `pricing`, `limits`, `cli`, `config`, `hooks`,
+`deps`
 
 For parser work, use the sub-scope form: `parser/claude`, `parser/codex`.
 

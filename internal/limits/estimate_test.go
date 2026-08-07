@@ -191,6 +191,36 @@ func TestEstimateFlagsLimitedHistory(t *testing.T) {
 	}
 }
 
+// Several blocks inside one week still leave the weekly window as its own
+// baseline, so the explanation has to cover that case too.
+func TestEstimateFlagsLimitedHistoryWithOneWeekOfBlocks(t *testing.T) {
+	t.Parallel()
+
+	database := newStore(t,
+		event("claude", now.Add(-100*time.Hour), 400),
+		event("claude", now.Add(-50*time.Hour), 900),
+		event("claude", now.Add(-time.Hour), 200),
+	)
+
+	results, err := limits.Estimate(context.Background(), database, now, limits.Budgets{})
+	if err != nil {
+		t.Fatalf("estimate: %v", err)
+	}
+
+	claude := sourceOf(t, results, "claude")
+	// Three separate blocks, so the five-hour comparison is real.
+	if block := windowOf(t, claude, limits.KindFiveHour); block.Utilization != 200.0/900.0*100 {
+		t.Fatalf("five-hour utilization = %v", block.Utilization)
+	}
+	// One week bucket, so the weekly comparison is not.
+	if week := windowOf(t, claude, limits.KindSevenDay); week.Utilization != 100 {
+		t.Fatalf("seven-day utilization = %v, want 100", week.Utilization)
+	}
+	if claude.Message == "" {
+		t.Fatal("message is empty, want a limited-history explanation for the weekly window")
+	}
+}
+
 func TestEstimateSortsSourcesAndSkipsUnusedAgents(t *testing.T) {
 	t.Parallel()
 

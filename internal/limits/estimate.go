@@ -98,7 +98,10 @@ func (e *estimator) current() *block {
 
 func (e *estimator) finish(name string, budgets Budgets) SourceLimits {
 	result := SourceLimits{Source: name, Origin: OriginEstimated, Windows: []Window{}}
-	if len(e.blocks) < 2 {
+	// With only one block or one week on record, the current window is its own
+	// baseline and reads as a hundred percent. That is arithmetically right and
+	// easy to misread as a real quota, so it says so.
+	if len(e.blocks) < 2 || len(e.weeks) < 2 {
 		result.Message = "limited history: the comparison baseline grows as agentmeter records more usage"
 	}
 
