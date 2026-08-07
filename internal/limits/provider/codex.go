@@ -2,10 +2,10 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/daniel-kindl/agentmeter/internal/limits"
@@ -34,41 +34,30 @@ func NewCodex(configRoot string) *Codex {
 // Source names the agent these windows belong to.
 func (c *Codex) Source() string { return "codex" }
 
-// codexWindow is one rate limit window. The reset arrives as a duration rather
-// than an instant, so it is resolved against the fetch time.
+// sessionWindowCeiling separates the rolling session window from the weekly
+// allowance. The endpoint reports each window's length rather than naming it,
+// and the two are orders of magnitude apart, so any threshold between a day and
+// a week distinguishes them.
+const sessionWindowCeiling = 24 * 60 * 60
+
+// codexWindow is one rate limit window. The window's own length decides which
+// limit it is: an account can report its weekly allowance as the primary window
+// with no secondary at all, so mapping by position would label a weekly figure
+// as a five-hour one.
 type codexWindow struct {
-	UsedPercent     *float64 `json:"used_percent"`
-	WindowMinutes   *int64   `json:"window_minutes"`
-	ResetsInSeconds *int64   `json:"resets_in_seconds"`
+	UsedPercent        *float64 `json:"used_percent"`
+	LimitWindowSeconds *int64   `json:"limit_window_seconds"`
+	ResetAfterSeconds  *int64   `json:"reset_after_seconds"`
+	ResetAt            *int64   `json:"reset_at"`
 }
 
-type codexSnapshot struct {
-	Primary   *codexWindow `json:"primary"`
-	Secondary *codexWindow `json:"secondary"`
+type codexRateLimit struct {
+	PrimaryWindow   *codexWindow `json:"primary_window"`
+	SecondaryWindow *codexWindow `json:"secondary_window"`
 }
 
-// codexUsage holds the account's rate limit snapshots. The Codex CLI's own
-// client reads them from a rate_limits field, but the endpoint is undocumented,
-// so a bare array is accepted too. A shape matching neither is an error rather
-// than an empty result, so an unrecognized response can never render as 0%.
 type codexUsage struct {
-	RateLimits []codexSnapshot
-}
-
-func (u *codexUsage) UnmarshalJSON(data []byte) error {
-	var wrapped struct {
-		RateLimits []codexSnapshot `json:"rate_limits"`
-	}
-	if err := json.Unmarshal(data, &wrapped); err == nil && wrapped.RateLimits != nil {
-		u.RateLimits = wrapped.RateLimits
-		return nil
-	}
-	var bare []codexSnapshot
-	if err := json.Unmarshal(data, &bare); err != nil {
-		return fmt.Errorf("decode Codex usage windows: %w", err)
-	}
-	u.RateLimits = bare
-	return nil
+	RateLimit *codexRateLimit `json:"rate_limit"`
 }
 
 // Fetch returns Codex's current limit windows.
@@ -92,35 +81,38 @@ func (c *Codex) Fetch(ctx context.Context, now time.Time) ([]limits.Window, erro
 	}
 
 	windows := []limits.Window{}
-	for _, snapshot := range usage.RateLimits {
-		if window, ok := codexLimitWindow(limits.KindFiveHour, snapshot.Primary, now); ok {
-			windows = append(windows, window)
-		}
-		if window, ok := codexLimitWindow(limits.KindSevenDay, snapshot.Secondary, now); ok {
-			windows = append(windows, window)
-		}
-		// Later entries describe additional limits such as workspace caps.
-		// Reporting the account's own windows is enough for the dashboard.
-		if len(windows) > 0 {
-			break
+	if usage.RateLimit != nil {
+		for _, candidate := range []*codexWindow{usage.RateLimit.PrimaryWindow, usage.RateLimit.SecondaryWindow} {
+			if window, ok := codexLimitWindow(candidate, now); ok {
+				windows = append(windows, window)
+			}
 		}
 	}
 	if len(windows) == 0 {
+		// A plan can genuinely carry one window, but zero means the response
+		// was not the shape this parses. Say so rather than render nought
+		// percent used, which would read as plenty of headroom.
 		return nil, errors.New("no usage windows reported for this OpenAI account")
 	}
+	slices.SortFunc(windows, func(a, b limits.Window) int { return strings.Compare(string(a.Kind), string(b.Kind)) })
 	return windows, nil
 }
 
-func codexLimitWindow(kind limits.Kind, window *codexWindow, now time.Time) (limits.Window, bool) {
-	if window == nil || window.UsedPercent == nil {
+func codexLimitWindow(window *codexWindow, now time.Time) (limits.Window, bool) {
+	if window == nil || window.UsedPercent == nil || window.LimitWindowSeconds == nil {
 		return limits.Window{}, false
 	}
-	result := limits.Window{
-		Kind:        kind,
-		Utilization: percentage(*window.UsedPercent),
+	kind := limits.KindSevenDay
+	if *window.LimitWindowSeconds <= sessionWindowCeiling {
+		kind = limits.KindFiveHour
 	}
-	if window.ResetsInSeconds != nil && *window.ResetsInSeconds >= 0 {
-		reset := now.UTC().Add(time.Duration(*window.ResetsInSeconds) * time.Second)
+	result := limits.Window{Kind: kind, Utilization: percentage(*window.UsedPercent)}
+	switch {
+	case window.ResetAt != nil && *window.ResetAt > 0:
+		reset := time.Unix(*window.ResetAt, 0).UTC()
+		result.ResetsAt = &reset
+	case window.ResetAfterSeconds != nil && *window.ResetAfterSeconds >= 0:
+		reset := now.UTC().Add(time.Duration(*window.ResetAfterSeconds) * time.Second)
 		result.ResetsAt = &reset
 	}
 	return result, true

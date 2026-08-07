@@ -109,14 +109,19 @@ func TestClaudeFetchMapsEveryReportedWindow(t *testing.T) {
 	}
 }
 
-func TestCodexFetchMapsPrimaryAndSecondaryWindows(t *testing.T) {
+func TestCodexFetchMapsBothWindows(t *testing.T) {
 	t.Parallel()
 
-	const body = `{"rate_limits": [
-  {"limit_name": "account",
-   "primary": {"used_percent": 42.5, "window_minutes": 299, "resets_in_seconds": 17940},
-   "secondary": {"used_percent": 6.0, "window_minutes": 10079, "resets_in_seconds": 275281}}
-]}`
+	const body = `{
+  "plan_type": "synthetic",
+  "rate_limit": {
+    "allowed": true,
+    "limit_reached": false,
+    "primary_window": {"used_percent": 42.5, "limit_window_seconds": 18000, "reset_after_seconds": 9000, "reset_at": 1786525406},
+    "secondary_window": {"used_percent": 6.0, "limit_window_seconds": 604800, "reset_after_seconds": 275281, "reset_at": 0}
+  },
+  "credits": {"has_credits": false}
+}`
 	server, received := serveJSON(t, http.StatusOK, body)
 	codex := &provider.Codex{
 		BaseURL:    server.URL,
@@ -136,12 +141,17 @@ func TestCodexFetchMapsPrimaryAndSecondaryWindows(t *testing.T) {
 	if block.Utilization != 42.5 {
 		t.Fatalf("five-hour utilization = %v, want 42.5", block.Utilization)
 	}
-	// The reset arrives as a duration and is resolved against the fetch time.
-	if wantReset := now.Add(17940 * time.Second); block.ResetsAt == nil || !block.ResetsAt.Equal(wantReset) {
+	// An absolute reset instant is preferred over the countdown beside it.
+	if wantReset := time.Unix(1786525406, 0).UTC(); block.ResetsAt == nil || !block.ResetsAt.Equal(wantReset) {
 		t.Fatalf("five-hour reset = %v, want %v", block.ResetsAt, wantReset)
 	}
-	if week := windowOf(t, windows, limits.KindSevenDay); week.Utilization != 6 {
+	week := windowOf(t, windows, limits.KindSevenDay)
+	if week.Utilization != 6 {
 		t.Fatalf("weekly utilization = %v, want 6", week.Utilization)
+	}
+	// With no usable instant, the countdown resolves against the fetch time.
+	if wantReset := now.Add(275281 * time.Second); week.ResetsAt == nil || !week.ResetsAt.Equal(wantReset) {
+		t.Fatalf("weekly reset = %v, want %v", week.ResetsAt, wantReset)
 	}
 	if got := received.Header.Get("ChatGPT-Account-Id"); got != "account-1" {
 		t.Fatalf("ChatGPT-Account-Id = %q", got)
@@ -151,10 +161,18 @@ func TestCodexFetchMapsPrimaryAndSecondaryWindows(t *testing.T) {
 	}
 }
 
-func TestCodexFetchAcceptsBareArrayResponse(t *testing.T) {
+// A plan can report its weekly allowance as the primary window with no
+// secondary at all. Mapping by position would publish that weekly figure as a
+// five-hour reading, which is the wrong number under the wrong name.
+func TestCodexFetchNamesWindowsByDurationNotPosition(t *testing.T) {
 	t.Parallel()
 
-	const body = `[{"primary": {"used_percent": 12.0, "resets_in_seconds": 60}}]`
+	const body = `{
+  "rate_limit": {
+    "primary_window": {"used_percent": 78, "limit_window_seconds": 604800, "reset_after_seconds": 394368, "reset_at": 1786525406},
+    "secondary_window": null
+  }
+}`
 	server, _ := serveJSON(t, http.StatusOK, body)
 	codex := &provider.Codex{BaseURL: server.URL, Credential: staticCredential(provider.Credential{Token: syntheticToken}, nil)}
 
@@ -162,8 +180,28 @@ func TestCodexFetchAcceptsBareArrayResponse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fetch: %v", err)
 	}
-	if len(windows) != 1 || windows[0].Utilization != 12 {
-		t.Fatalf("windows = %+v", windows)
+	if len(windows) != 1 {
+		t.Fatalf("windows = %+v, want only the weekly window", windows)
+	}
+	if windows[0].Kind != limits.KindSevenDay {
+		t.Fatalf("kind = %q, want the weekly window for a 604800-second span", windows[0].Kind)
+	}
+	if windows[0].Utilization != 78 {
+		t.Fatalf("utilization = %v, want 78", windows[0].Utilization)
+	}
+}
+
+// A window with no stated length cannot be named, and guessing would put a
+// reading under the wrong limit.
+func TestCodexFetchSkipsWindowsWithNoStatedLength(t *testing.T) {
+	t.Parallel()
+
+	const body = `{"rate_limit": {"primary_window": {"used_percent": 12}, "secondary_window": null}}`
+	server, _ := serveJSON(t, http.StatusOK, body)
+	codex := &provider.Codex{BaseURL: server.URL, Credential: staticCredential(provider.Credential{Token: syntheticToken}, nil)}
+
+	if _, err := codex.Fetch(context.Background(), now); err == nil {
+		t.Fatal("Fetch accepted a window with no stated length")
 	}
 }
 
@@ -199,8 +237,8 @@ func TestFetchRejectsUnrecognizedResponses(t *testing.T) {
 			},
 		},
 		{
-			name: "codex with an empty list",
-			body: `{"rate_limits": []}`,
+			name: "codex with both windows null",
+			body: `{"rate_limit": {"primary_window": null, "secondary_window": null}}`,
 			make: func(baseURL string) provider.Provider {
 				return &provider.Codex{BaseURL: baseURL, Credential: staticCredential(provider.Credential{Token: syntheticToken}, nil)}
 			},
