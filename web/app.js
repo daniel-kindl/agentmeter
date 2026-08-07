@@ -91,7 +91,11 @@ function element(tag, className, text) {
 function formatReset(value) {
   const at = new Date(value);
   const withinDay = at.getTime() - Date.now() < 24 * 60 * 60 * 1000;
-  return `resets ${(withinDay ? clock : dayClock).format(at)}`;
+  return (withinDay ? clock : dayClock).format(at);
+}
+
+function agentName(source) {
+  return { claude: "Claude Code", codex: "Codex" }[source] ?? source;
 }
 
 function originBadge(limits) {
@@ -100,15 +104,20 @@ function originBadge(limits) {
   return { text: "estimate", className: "" };
 }
 
-// Estimated windows are measured against local history rather than a published
-// quota, so they say what they are being compared to.
-function meterNote(window, origin) {
-  const parts = [];
-  if (window.resets_at) parts.push(formatReset(window.resets_at));
+// Note text alternates prose and measured values. The measured segments are set
+// in the mono face, so a reset time or token count lines up with the meters
+// above it instead of drifting with the surrounding sentence.
+function noteSegments(window, origin) {
+  const segments = [];
+  if (window.resets_at) segments.push("resets ", { value: formatReset(window.resets_at) });
   if (origin === "estimated" && window.budget_tokens) {
-    parts.push(`${compact.format(window.used_tokens)} / ${compact.format(window.budget_tokens)} tokens vs your busiest window`);
+    if (segments.length > 0) segments.push(" · ");
+    segments.push(
+      { value: `${compact.format(window.used_tokens)} / ${compact.format(window.budget_tokens)}` },
+      " tokens, against your busiest window so far",
+    );
   }
-  return parts.join(" · ");
+  return segments;
 }
 
 function renderMeter(window, origin) {
@@ -121,20 +130,22 @@ function renderMeter(window, origin) {
   const fill = element("div", `meter-fill${severity}`);
   fill.style.width = `${Math.min(Math.max(window.utilization, 0), 100)}%`;
   track.append(fill);
-
   row.append(label, track);
-  const note = meterNote(window, origin);
-  if (note) row.append(element("p", "meter-note", note));
+
+  const segments = noteSegments(window, origin);
+  if (segments.length > 0) {
+    const note = element("p", "meter-note");
+    segments.forEach((segment) => note.append(segment.value ? element("b", null, segment.value) : segment));
+    row.append(note);
+  }
   return row;
 }
 
 function renderLimitPanel(limits) {
   const panel = element("section", "panel limit-panel");
   const heading = element("div", "panel-heading");
-  const title = element("div");
-  title.append(element("p", "eyebrow", limits.source.toUpperCase()), element("h2", null, "Usage limits"));
   const badge = originBadge(limits);
-  heading.append(title, element("span", `origin-badge ${badge.className}`.trim(), badge.text));
+  heading.append(element("h2", null, agentName(limits.source)), element("span", `origin-badge ${badge.className}`.trim(), badge.text));
   panel.append(heading);
 
   const meters = element("div", "meters");

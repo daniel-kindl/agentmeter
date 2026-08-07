@@ -95,7 +95,14 @@ Session logs may contain source code, file contents, and prompts. Never add real
 or Codex session data to this repository. Test fixtures must be hand-authored and live under
 `testdata/synthetic/`.
 
+The dashboard embeds its own fonts rather than loading them from a font CDN. A page about
+your private usage should not have to announce itself to a third party in order to render,
+and the binary is meant to work with no network at all.
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
+
+The bundled IBM Plex Sans and IBM Plex Mono files under `web/fonts/` are © 2017 IBM Corp.,
+licensed under the SIL Open Font License 1.1. See [web/fonts/LICENSE](web/fonts/LICENSE).
 
