@@ -21,19 +21,16 @@ const dayClock = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-d
 const limitRefreshMs = 60_000;
 const historyRefreshMs = 180_000;
 
-// Steps on the wedge. A step tablet reads by which patch is the last light
-// one, so the strip is built from discrete patches rather than a filled track.
-// Ten rather than twenty: the graduation has to separate *adjacent* patches at
-// arm's length across a room, and twenty steps left too little tone between
-// neighbours to see.
-const wedgeSteps = 10;
+// Where a live meter changes colour. Below the first it is green, between them
+// amber, at or above the second red.
+const warnPercent = 75;
+const criticalPercent = 90;
 
 // How many unpriced models the warning names before it counts the rest.
 const namedModelLimit = 3;
 
 let activeRange = "30d";
 let lamp = null;
-let limitsMounted = false;
 
 document.querySelectorAll("[data-range]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -146,68 +143,56 @@ function noteSegments(window, origin) {
   ];
 }
 
-// A step tablet: discrete patches whose density is fixed by position, read by
-// finding the last light one. Exposure blackens from the left, so the patches
-// nearest maximum density go first.
-function renderStrip(used) {
-  const strip = element("div", "wedge");
-  for (let index = 0; index < wedgeSteps; index += 1) {
-    const from = (index * 100) / wedgeSteps;
-    const to = ((index + 1) * 100) / wedgeSteps;
-    const step = element("div", "wedge-step");
-    // Fixed graduation across the strip, denser toward the exposed end. It does
-    // not move with the value; that is what makes it a calibration rather than
-    // a fill. What matters is the tone between neighbouring patches, not the
-    // spread end to end: exposure always eats the left, so a graduation whose
-    // range is spent there is gone before anyone reads it.
-    const paper = `hsl(34 22% ${52 + (index / (wedgeSteps - 1)) * 42}%)`;
-    if (used >= to) {
-      step.classList.add("is-exposed");
-    } else if (used > from) {
-      const crossing = ((used - from) / (to - from)) * 100;
-      step.classList.add("is-edge");
-      step.style.background = `linear-gradient(90deg, var(--exposed) ${crossing}%, ${paper} ${crossing}%)`;
-    } else {
-      step.style.background = paper;
-    }
-    strip.append(step);
-  }
-  return strip;
+// Only a live reading earns a status colour. An estimate sits against the
+// busiest window in local history, so it reaches 100% the moment the current
+// window is the busiest one — an artefact of a thin baseline, not a limit being
+// reached. Lighting that up would be the page telling a lie in colour.
+function meterState(used, origin) {
+  if (origin !== "live") return "is-derived";
+  if (used >= criticalPercent) return "is-critical";
+  if (used >= warnPercent) return "is-warn";
+  return "";
 }
 
-function renderWedge(window, origin) {
-  const group = element("div", "wedge-group");
+// A filled track, read by length. The numeral beside it already carries the
+// value for a screen reader, so the bar is a visual duplicate and says nothing
+// of its own.
+function renderMeter(used) {
+  const meter = element("div", "meter");
+  meter.setAttribute("aria-hidden", "true");
+  const fill = element("div", "meter-fill");
+  fill.style.width = `${used}%`;
+  meter.append(fill);
+  return meter;
+}
+
+function renderWindow(window, origin) {
+  const group = element("div", "window");
   const used = Math.min(Math.max(window.utilization, 0), 100);
 
-  const head = element("div", "wedge-head");
-  head.append(element("span", "wedge-name", window.label));
+  const head = element("div", "window-head");
+  head.append(element("span", "window-name", window.label));
   // The reset slot always renders. Dropping the line loses half of what the row
   // promises to say, but the two ways a window can lack a reset are not the
   // same thing: a five-hour block has none because nothing is open, while a
   // derived weekly window has none because its real reset instant is not
   // knowable offline. Saying "no block open" for both would misdescribe one.
   head.append(window.resets_at
-    ? element("span", "wedge-reset", `resets ${formatReset(window.resets_at)}`)
-    : element("span", "wedge-reset is-idle", window.kind === "5h" ? "no block open" : "no fixed reset"));
+    ? element("span", "window-reset", `resets ${formatReset(window.resets_at)}`)
+    : element("span", "window-reset is-idle", window.kind === "5h" ? "no block open" : "no fixed reset"));
   group.append(head);
 
-  const row = element("div", "wedge-row");
-  // Only a live reading earns the alarm. An estimate sits against the busiest
-  // window in local history, so it reaches 100% the moment the current window
-  // is the busiest one — an artefact of a thin baseline, not a limit being
-  // reached. Lighting that up would be the page telling a lie in colour.
-  if (origin === "live") {
-    if (used >= 90) row.classList.add("is-critical");
-    else if (used >= 75) row.classList.add("is-warn");
-  }
-  const value = element("div", "wedge-value", String(Math.round(used)));
-  value.append(element("span", null, "%"));
-  row.append(renderStrip(used), value);
+  const row = element("div", `window-row ${meterState(used, origin)}`.trim());
+  const value = element("div", "window-value");
+  const percent = element("span", "window-percent", String(Math.round(used)));
+  percent.append(element("span", null, "%"));
+  value.append(percent, element("span", "window-unit", "used"));
+  row.append(value, renderMeter(used));
   group.append(row);
 
   const segments = noteSegments(window, origin);
   if (segments.length > 0) {
-    const note = element("p", "wedge-note");
+    const note = element("p", "window-note");
     segments.forEach((segment) => note.append(segment.value ? element("b", null, segment.value) : segment));
     group.append(note);
   }
@@ -222,11 +207,11 @@ function renderLimitCard(limits) {
   head.append(element("h2", null, agentName(limits.source)), element("span", `origin-chip ${chip.className}`.trim(), chip.text));
   card.append(head);
 
-  const wedges = element("div", "wedges");
-  wedges.append(...limits.windows.map((window) => renderWedge(window, limits.origin)));
-  card.append(wedges);
+  const windows = element("div", "windows");
+  windows.append(...limits.windows.map((window) => renderWindow(window, limits.origin)));
+  card.append(windows);
 
-  if (limits.message) card.append(element("p", "wedge-note", limits.message));
+  if (limits.message) card.append(element("p", "window-note", limits.message));
   return card;
 }
 
@@ -236,7 +221,7 @@ function renderLimitFailure(message) {
   const card = element("section", "card");
   const head = element("header", "card-head");
   head.append(element("h2", null, "Usage limits"), element("span", "origin-chip unavailable", "no reading"));
-  card.append(head, element("p", "wedge-note", message));
+  card.append(head, element("p", "window-note", message));
   limitsNode.replaceChildren(card);
   limitsNode.hidden = false;
 }
@@ -274,11 +259,6 @@ function renderLimits(data) {
     limitsNode.replaceChildren(...data.sources.map(renderLimitCard));
     limitsNode.hidden = false;
   }
-  // The develop animation belongs to arriving at the page, not to every poll.
-  // The class is withheld on the first render so the print comes up once, then
-  // applied so a refresh replaces values without re-exposing the strip.
-  if (limitsMounted) limitsNode.classList.add("is-settled");
-  limitsMounted = true;
   if (data.configurable) renderLamp(data);
   else liveMount.replaceChildren();
 }

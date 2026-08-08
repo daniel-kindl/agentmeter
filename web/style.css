@@ -57,13 +57,9 @@
   --radius-card: 6px;
   --radius-control: 4px;
 
-  /* Superseded by the meter and the bar chart in the following two commits.
-     Declared here only so this commit leaves a page that still renders. */
-  --edge: var(--border);
-  --exposed: var(--bg);
-  --paper: var(--text);
-  --rim-light: rgb(255 255 255 / .06);
-  --safelight: var(--accent);
+  /* Notches on the meter's quarter marks. A dark alpha rather than a colour,
+     because it has to read on the track and on every fill colour alike. */
+  --meter-tick: rgb(0 0 0 / .45);
 }
 
 * { box-sizing: border-box; }
@@ -207,31 +203,66 @@ th { font-size: .75rem; font-weight: 400; color: var(--text-mute); }
 th:first-child, td:first-child { text-align: left; }
 td:not(:first-child) { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text-dim); }
 
-.wedges { display: grid; gap: 20px; margin-top: 18px; }
-.wedge-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
-.wedge-name { font-size: .8125rem; color: var(--text-dim); }
-.wedge-reset { font-family: var(--mono); font-size: .8125rem; color: var(--text-dim); }
-.wedge-reset.is-idle { color: var(--text-mute); }
-.wedge-row { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
-.wedge { display: flex; gap: 2px; flex: 1; height: 44px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-2); }
-.wedge-step { flex: 1; border-radius: 1px; }
-.wedge-step.is-exposed { background: var(--bg); box-shadow: inset 0 0 0 1px var(--rim-light); }
-.wedge-value {
-  min-width: 3.6ch;
+.windows { display: grid; gap: 22px; margin-top: 18px; }
+.window-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.window-name { font-size: .8125rem; color: var(--text-dim); }
+.window-reset { font-family: var(--mono); font-size: .8125rem; color: var(--text-dim); }
+.window-reset.is-idle { color: var(--text-mute); }
+.window-row { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
+
+/* The percentage is the only large element on the page, so that at two metres
+   exactly one thing resolves first and the rest waits until you look. */
+.window-value { display: flex; flex-direction: column; align-items: flex-end; min-width: 4.2ch; }
+.window-percent {
   font-family: var(--mono);
-  font-size: clamp(2.1rem, 4vw, 3rem);
+  font-size: clamp(2.25rem, 5vw, 3.25rem);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: -.03em;
-  text-align: right;
+  line-height: 1;
 }
-.wedge-value span { font-size: .42em; color: var(--text-mute); }
-.wedge-note { margin: 8px 0 0; font-size: .8125rem; color: var(--text-mute); }
-.wedge-note b { font-family: var(--mono); font-weight: 400; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.window-percent span { font-size: .4em; color: var(--text-mute); }
+.window-unit { margin-top: 5px; font-size: .75rem; color: var(--text-mute); }
+
+/* Length, not tone. The step wedge this replaces encoded its value as the
+   position of the last light patch, which had to be decoded patch by patch;
+   a filled track is read accurately at a glance and from further away. The
+   quarter ticks sit above the fill so the bar can be read on its own. */
+.meter {
+  position: relative;
+  flex: 1;
+  height: 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.meter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), var(--meter-tick) calc(25% - 1px), var(--meter-tick) 25%);
+}
+.meter-fill { height: 100%; border-radius: inherit; background: var(--ok); transition: width .4s ease; }
+.window-row.is-warn .meter-fill { background: var(--warn); }
+.window-row.is-critical .meter-fill { background: var(--crit); }
+.window-row.is-warn .window-percent { color: var(--warn); }
+.window-row.is-critical .window-percent { color: var(--crit); }
+/* A derived window is measured against local history rather than a published
+   quota, so it never takes a status colour. See the Provenance Rule. */
+.window-row.is-derived .meter-fill { background: var(--text-mute); }
+
+.window-note { margin: 9px 0 0; font-size: .8125rem; color: var(--text-mute); }
+.window-note b { font-family: var(--mono); font-weight: 400; font-variant-numeric: tabular-nums; color: var(--text-dim); }
 
 .teststrip { display: flex; gap: 2px; height: 88px; margin-top: 16px; }
 .teststrip div { flex: 1; min-width: 3px; border-radius: 1px; background: var(--cell, var(--surface-2)); }
 .strip-legend { display: flex; justify-content: space-between; margin: 8px 0 0; font-size: .75rem; color: var(--text-mute); }
+
+/* The only motion on the page. It fills in once on arrival and eases between
+   values on a poll, so a number that moved is visibly a number that moved. */
+@media (prefers-reduced-motion: reduce) {
+  .meter-fill { transition: none; }
+}
 
 @media (max-width: 900px) {
   main { width: calc(100% - 32px); }
