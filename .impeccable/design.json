@@ -88,7 +88,7 @@
     },
     "shadows": [],
     "motion": [
-      { "name": "meter-fill", "value": "transition: width .4s ease", "purpose": "The only motion rule on the page. Covers the first paint and every subsequent poll with one declaration." },
+      { "name": "meter-fill", "value": "transition: width .4s ease", "purpose": "The only motion rule on the page. Covers the first paint and every subsequent poll with one declaration. Width rather than transform: scaleX is deliberate — there are at most three meters, 12px tall, moving once a minute, while scaling a 4px radius horizontally stretches the end caps into ellipses. The layout cost is theoretical; the distortion is not. New animations should still use transform and opacity." },
       { "name": "reduced-motion", "value": "@media (prefers-reduced-motion: reduce) { .meter-fill { transition: none } }", "purpose": "The transition is removed entirely, not shortened." }
     ],
     "breakpoints": [
@@ -116,7 +116,7 @@
       "refersTo": "chart-bar",
       "description": "Daily history as one bar per day, height proportional to that day's tokens against the range peak. Idle days keep a 2% stub so a quiet week reads as quiet days rather than as a gap. The axis carries the first date, the peak value and the last date.",
       "html": "<div class=\"ds-chart\"><div class=\"ds-bars\"><div style=\"height:22%\"></div><div style=\"height:41%\"></div><div class=\"ds-idle\" style=\"height:2%\"></div><div style=\"height:68%\"></div><div style=\"height:100%\"></div><div style=\"height:37%\"></div><div style=\"height:54%\"></div><div style=\"height:12%\"></div></div><div class=\"ds-axis\"><span>14 Jul</span><span>peak 853M tokens</span><span>8 Aug</span></div></div>",
-      "css": ".ds-bars { display: flex; align-items: flex-end; gap: 2px; height: 110px; } .ds-bars div { flex: 1; min-width: 2px; border-radius: 2px 2px 0 0; background: #a3acb9; } .ds-bars .ds-idle { background: #333a45; } .ds-axis { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid #262b33; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: .75rem; color: #78828f; }"
+      "css": ".ds-bars { display: flex; align-items: flex-end; gap: 2px; height: 110px; } .ds-bars div { flex: 1; min-width: 2px; border-radius: 2px 2px 0 0; /* rounded.bar: a bar is ~2px wide at 30d, so the control radius would dome it */ background: #a3acb9; } .ds-bars .ds-idle { background: #333a45; } .ds-axis { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid #262b33; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: .75rem; color: #78828f; }"
     },
     {
       "name": "Card",
@@ -170,9 +170,9 @@
       "name": "Notice",
       "kind": "custom",
       "refersTo": "notice",
-      "description": "The system admitting a gap in its own data — unpriced models, a live-switch error. A warn rule on a plain surface rather than a filled panel, so it informs without alarming.",
+      "description": "The system admitting a gap in its own data — unpriced models, a live-switch error. A warn hairline on a plain surface with prose at reading colour: the same treatment as an origin chip, because it is the same kind of statement. No thick coloured tab down one side; that is decoration standing in for hierarchy.",
       "html": "<p class=\"ds-notice\">Cost excludes unpriced models: cohere/north-mini-code:free, and 2 more</p>",
-      "css": ".ds-notice { margin: 0; padding: 11px 14px; border: 1px solid #262b33; border-left: 3px solid #f5a524; border-radius: 4px; background: #14171c; color: #a3acb9; font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif; font-size: .875rem; }"
+      "css": ".ds-notice { margin: 0; padding: 11px 14px; border: 1px solid #f5a524; border-radius: 4px; background: #14171c; color: #a3acb9; font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif; font-size: .875rem; }"
     }
   ],
   "narrative": {

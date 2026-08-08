@@ -50,6 +50,7 @@ typography:
     fontWeight: 400
     fontFeature: "tabular-nums"
 rounded:
+  bar: "2px"
   control: "4px"
   card: "6px"
 spacing:
@@ -86,7 +87,7 @@ components:
     backgroundColor: "{colors.text-mute}"
   chart-bar:
     backgroundColor: "{colors.text-dim}"
-    rounded: "2px 2px 0 0"
+    rounded: "{rounded.bar} {rounded.bar} 0 0"
   chart-bar-idle:
     backgroundColor: "{colors.border-strong}"
   range-button:
@@ -118,6 +119,7 @@ components:
   notice:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.text-dim}"
+    borderColor: "{colors.warn}"
     rounded: "{rounded.control}"
     padding: "11px 14px"
 ---
@@ -258,8 +260,10 @@ vocabulary, and no blur.
 
 ## Shapes
 
-`{rounded.control}` on controls, chips, meters and notices; `{rounded.card}` on cards. Chart
-bars are rounded on their top corners only, so the baseline stays a straight line.
+`{rounded.control}` on controls, chips, meters and notices; `{rounded.card}` on cards.
+`{rounded.bar}` exists because a chart bar is about 2px wide at a 30-day range and the control
+radius would round it into a dome; bars are rounded on their top corners only, so the baseline
+stays a straight line.
 
 ## Components
 
@@ -298,12 +302,21 @@ Sentence-case headers in `{typography.caption}`, hairline row rules, no zebra, f
 `{colors.text}` and figures in mono. Wrapped in an `overflow-x: auto` container.
 
 ### Notice
-A left rule in `{colors.warn}` on a plain surface. It informs without alarming, which is right
-for the system admitting a gap in its own data.
+A `{colors.warn}` hairline on a plain surface with prose at reading colour — the same
+treatment as an origin chip, because it is the same kind of statement. It informs without
+alarming, which is right for the system admitting a gap in its own data. It does not get a
+thick coloured tab down one side; that is decoration standing in for hierarchy.
 
 ### Motion
 One rule on the page: `.meter-fill { transition: width .4s ease }`, disabled under
 `prefers-reduced-motion`. There are no keyframes and no entrance animation.
+
+`width` rather than `transform: scaleX` is deliberate, against the usual advice. Animating
+width does trigger layout, but there are at most three meters, they are 12px tall, and they
+move once a minute on a poll — while scaling a `{rounded.control}` radius horizontally
+stretches the end caps into ellipses, which is visible at a low percentage. The layout cost is
+theoretical here; the distortion is not. Any *new* animation should still use transform and
+opacity.
 
 ## Do's and don'ts
 
