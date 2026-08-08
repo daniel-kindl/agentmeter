@@ -128,8 +128,14 @@ function renderChart(days) {
     return bar;
   }));
 
+  // The bars are relative heights, so without the peak the chart says which
+  // day was busiest and nothing about how busy that was.
   const axis = element("div", "chart-axis");
-  axis.append(element("span", null, axisLabel(filled[0].date)), element("span", null, axisLabel(filled.at(-1).date)));
+  axis.append(
+    element("span", null, axisLabel(filled[0].date)),
+    element("span", null, `peak ${compact.format(maximum)} tokens`),
+    element("span", null, axisLabel(filled.at(-1).date)),
+  );
   chart.append(bars, axis);
 }
 
@@ -235,7 +241,7 @@ function renderLimitFailure(message) {
   const card = element("section", "card");
   const head = element("header", "card-head");
   head.append(element("h2", null, "Usage limits"), element("span", "origin-chip unavailable", "no reading"));
-  card.append(head, element("p", "window-note", message));
+  card.append(head, element("p", "card-message", message));
   limitsNode.replaceChildren(card);
   limitsNode.hidden = false;
 }

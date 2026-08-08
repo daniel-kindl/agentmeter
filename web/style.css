@@ -195,8 +195,17 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   font-size: .875rem;
 }
 
-.logs { display: grid; grid-template-columns: 1fr 1.35fr; gap: 16px; }
-.stack { display: grid; gap: 16px; margin-top: 16px; }
+/* Top-aligned, not stretched: the agent table has two rows and the model table
+   has nine, and matching their heights only buys a card of empty space.
+   Every track is minmax(0, …) rather than a bare fr, because a grid track sized
+   auto refuses to shrink below its content and a long model name would then
+   push the whole page wider than the viewport. */
+.logs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); align-items: start; gap: 16px; }
+.stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+
+/* Model names and token counts have a floor width the card cannot always give
+   them. The table scrolls inside its own card rather than widening the page. */
+.table-wrap { overflow-x: auto; }
 table { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: .875rem; }
 th, td { padding: 9px 8px; border-top: 1px solid var(--border); text-align: right; }
 th { font-size: .75rem; font-weight: 400; color: var(--text-mute); }
@@ -254,6 +263,10 @@ td:not(:first-child) { font-family: var(--mono); font-variant-numeric: tabular-n
 .window-note { margin: 9px 0 0; font-size: .8125rem; color: var(--text-mute); }
 .window-note b { font-family: var(--mono); font-weight: 400; font-variant-numeric: tabular-nums; color: var(--text-dim); }
 
+/* On a first run this is the only sentence on the page, and it is the one that
+   says what to do next, so it is not set at the weight of a footnote. */
+.card-message { margin: 10px 0 0; color: var(--text-dim); }
+
 /* History is reference material sitting below the limits, so the bars are set
    in a neutral rather than the accent: nothing down here should pull the eye
    away from the meters above it. */
@@ -280,8 +293,8 @@ td:not(:first-child) { font-family: var(--mono); font-variant-numeric: tabular-n
 
 @media (max-width: 900px) {
   main { width: calc(100% - 32px); }
-  #limits { grid-template-columns: 1fr; }
-  .logs { grid-template-columns: 1fr; }
+  #limits { grid-template-columns: minmax(0, 1fr); }
+  .logs { grid-template-columns: minmax(0, 1fr); }
   .readouts { grid-template-columns: 1fr 1fr; }
 }
 
