@@ -186,6 +186,24 @@ by exactly one saturated accent.
 - **Exposed** (`{colors.exposed}`): a consumed patch. Slightly darker than the ground so a
   fully exposed wedge still reads as a thing sitting on the page.
 
+### Working values
+
+Not palette entries, but system values all the same. They were literals scattered through the
+stylesheet until the first detector pass on this document found them; each is now declared
+once in `:root` and referenced everywhere.
+
+- **Safelight Soft** (`--safelight-soft`, `#d99a55`): the accent at label weight. A live chip
+  has to be recognisable without competing with the alarm, so the one hue carries two
+  intensities rather than the system growing a second colour.
+- **Alarm Ink** (`--alarm-ink`, `#fff`): the only pure white here, spent solely on a limit
+  being reached. It exists because `{colors.ink}` cannot out-read paper at a glance.
+- **Rim Light** (`--rim-light`, `rgb(255 231 199 / .08)`): one paper-tint hairline, used
+  wherever adjacent dark cells must stay countable — exposed wedge patches and history strip
+  cells. These were `.07` and `.08` for the same job, which is precisely the drift a recorded
+  system exists to catch.
+- **Mask Opaque** (`--mask-opaque`, `#000`): an alpha channel for the rebate perforation mask.
+  Never painted, and not a colour decision despite its form.
+
 ### Named Rules
 **The One Safelight Rule.** There is one accent hue. If a new element wants a color, it gets
 muted, paper-dim, or nothing. Amber is spent only on *live*, *active*, *focused*, or *at the

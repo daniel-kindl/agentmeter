@@ -39,7 +39,18 @@
   --muted: #9a8b76;
   --safelight: #ff9a3c;
   --safelight-dim: #6b3d16;
+  /* Safelight at label weight, for a status that must be recognisable without
+     competing with the alarm. One accent hue, two intensities. */
+  --safelight-soft: #d99a55;
   --exposed: #0a0705;
+  /* The only pure white in the system, spent solely on a limit being reached:
+     it has to out-read paper, which --ink does not. */
+  --alarm-ink: #fff;
+  /* One paper-tint hairline, used wherever adjacent dark cells must stay
+     countable. Two near-identical alphas for the same job was drift. */
+  --rim-light: rgb(255 231 199 / .08);
+  /* Alpha channel for masks, never painted as a colour. */
+  --mask-opaque: #000;
 
   font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   background: var(--ground);
@@ -92,8 +103,8 @@ body::after {
   flex: 1;
   height: 11px;
   background-image: repeating-linear-gradient(90deg, var(--ground) 0 9px, transparent 9px 22px);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, var(--mask-opaque) 12%, var(--mask-opaque) 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, var(--mask-opaque) 12%, var(--mask-opaque) 88%, transparent);
   opacity: .5;
 }
 .rebate-lamp { display: inline-flex; }
@@ -161,7 +172,7 @@ h2 {
   border-radius: 1px;
   box-shadow: inset 0 0 0 1px rgb(10 7 5 / .35);
 }
-.wedge-step.is-exposed { background: var(--exposed); box-shadow: inset 0 0 0 1px rgb(255 231 199 / .07); }
+.wedge-step.is-exposed { background: var(--exposed); box-shadow: inset 0 0 0 1px var(--rim-light); }
 /* The safelight catches the wet edge, the one patch mid-exposure. */
 .wedge-step.is-edge { box-shadow: inset 0 0 0 1px rgb(255 154 60 / .55), 0 0 11px -2px rgb(255 154 60 / .7); }
 
@@ -179,10 +190,10 @@ h2 {
 .wedge-row.is-warn .wedge-value { color: var(--safelight); }
 /* At the edge the paper is nearly gone; the numeral takes the safelight and
    the frame lights with it, which is what carries across a room. */
-.wedge-row.is-critical .wedge-value { color: #fff; }
+.wedge-row.is-critical .wedge-value { color: var(--alarm-ink); }
 .wedge-row.is-critical .wedge { border-color: var(--safelight); box-shadow: 0 0 0 1px rgb(255 154 60 / .5), 0 0 26px -6px rgb(255 154 60 / .55); }
 
-.wedge-note { margin: 9px 0 0; font-size: .76rem; line-height: 1.5; color: var(--muted); }
+.wedge-note { margin: 9px 0 0; font-size: .8rem; line-height: 1.5; color: var(--muted); }
 .wedge-note b { font-family: var(--measure); font-weight: 400; font-variant-numeric: tabular-nums; color: var(--paper-dim); }
 
 /* An estimated sheet is an uncalibrated instrument, and says so in its frame
@@ -222,7 +233,7 @@ h2 {
 .lamp:has(input:focus-visible) { outline: 2px solid var(--safelight); outline-offset: 2px; }
 .lamp:has(input:disabled) { opacity: .5; cursor: progress; }
 .origin-chip { padding: 5px 11px; border: 1px solid var(--edge); border-radius: 2px; font-family: var(--measure); font-size: .74rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--paper-dim); }
-.origin-chip.live { border-color: var(--safelight-dim); color: #d99a55; }
+.origin-chip.live { border-color: var(--safelight-dim); color: var(--safelight-soft); }
 .origin-chip.stale, .origin-chip.unavailable { border-color: #8a6f2c; background: #241c0d; color: #f2d68f; }
 
 /* History as a test strip: one exposure per day, read by density. A bar chart
@@ -233,9 +244,9 @@ h2 {
   min-width: 3px;
   border-radius: 1px;
   background: var(--cell, var(--paper));
-  box-shadow: inset 0 0 0 1px rgb(255 231 199 / .08);
+  box-shadow: inset 0 0 0 1px var(--rim-light);
 }
-.strip-legend { display: flex; justify-content: space-between; margin: 9px 0 0; font-family: var(--measure); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.strip-legend { display: flex; justify-content: space-between; margin: 9px 0 0; font-family: var(--measure); font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 
 nav { display: flex; gap: 2px; }
 button {
@@ -265,7 +276,7 @@ button:focus-visible { outline: 2px solid var(--safelight); outline-offset: 2px;
 .logs .sheet { margin-top: 18px; }
 table { width: 100%; margin-top: 14px; border-collapse: collapse; font-size: .84rem; }
 th, td { padding: 10px 8px; border-top: 1px solid var(--edge); text-align: right; }
-th { font-family: var(--measure); font-size: .62rem; font-weight: 400; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+th { font-family: var(--measure); font-size: .64rem; font-weight: 400; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
 th:first-child, td:first-child { text-align: left; }
 td:not(:first-child) { font-family: var(--measure); font-variant-numeric: tabular-nums; color: var(--paper-dim); }
 
