@@ -13,6 +13,7 @@ const number = new Intl.NumberFormat("en");
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 const clock = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 const dayClock = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+const axisDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
 // This page is left open on a second screen, so everything on it refreshes
 // itself. Limits move fastest and lead; the history behind them changes slowly
@@ -104,26 +105,39 @@ function continuousDays(days) {
   return filled;
 }
 
-// The daily history is a test strip: one exposure per day, read by density.
-// A bar chart this small cannot be read from across a room, and this page is
-// meant to be glanced at rather than studied.
+// One bar per day, height by tokens. The density strip this replaces encoded
+// magnitude as lightness, which is the channel people read least accurately:
+// two days could not be compared and a run of them showed no trend. Height at
+// the same size does both.
 function renderChart(days) {
   const chart = document.querySelector("#chart");
   chart.replaceChildren();
   if (days.length === 0) return;
   const maximum = Math.max(...days.map(tokens), 1);
-  chart.append(...continuousDays(days).map((day) => {
+  const filled = continuousDays(days);
+
+  const bars = element("div", "chart-bars");
+  bars.append(...filled.map((day) => {
     const used = day.idle ? 0 : tokens(day);
-    const cell = element("div");
-    // Paper darkens with exposure, so an idle day stays at the paper tone and
-    // a heavy day approaches maximum density. The ramp stops short of the
-    // ground: taken all the way down, the busiest day matched the panel behind
-    // it and read as a hole in the strip rather than its darkest exposure.
-    const light = 90 - (used / maximum) * 72;
-    cell.style.setProperty("--cell", `hsl(34 22% ${light}%)`);
-    cell.title = `${day.date}: ${number.format(used)} tokens`;
-    return cell;
+    const bar = element("div", "chart-bar");
+    // An idle day keeps a visible stub instead of vanishing, so a gap reads as
+    // a day with no usage rather than as a break in the axis.
+    bar.style.height = `${Math.max((used / maximum) * 100, 2)}%`;
+    if (day.idle) bar.classList.add("is-idle");
+    bar.title = `${day.date}: ${number.format(used)} tokens`;
+    return bar;
   }));
+
+  const axis = element("div", "chart-axis");
+  axis.append(element("span", null, axisLabel(filled[0].date)), element("span", null, axisLabel(filled.at(-1).date)));
+  chart.append(bars, axis);
+}
+
+// The date is a local calendar day the server already bucketed, so it is read
+// back as UTC rather than reinterpreted — formatting it in the browser's zone
+// would slide the label a day west of Greenwich.
+function axisLabel(date) {
+  return axisDate.format(new Date(`${date}T00:00:00Z`));
 }
 
 function originChip(limits) {

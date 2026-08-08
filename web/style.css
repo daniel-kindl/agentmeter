@@ -254,9 +254,23 @@ td:not(:first-child) { font-family: var(--mono); font-variant-numeric: tabular-n
 .window-note { margin: 9px 0 0; font-size: .8125rem; color: var(--text-mute); }
 .window-note b { font-family: var(--mono); font-weight: 400; font-variant-numeric: tabular-nums; color: var(--text-dim); }
 
-.teststrip { display: flex; gap: 2px; height: 88px; margin-top: 16px; }
-.teststrip div { flex: 1; min-width: 3px; border-radius: 1px; background: var(--cell, var(--surface-2)); }
-.strip-legend { display: flex; justify-content: space-between; margin: 8px 0 0; font-size: .75rem; color: var(--text-mute); }
+/* History is reference material sitting below the limits, so the bars are set
+   in a neutral rather than the accent: nothing down here should pull the eye
+   away from the meters above it. */
+.chart { margin-top: 16px; }
+.chart-bars { display: flex; align-items: flex-end; gap: 2px; height: 110px; }
+.chart-bar { flex: 1; min-width: 2px; border-radius: 2px 2px 0 0; background: var(--text-dim); }
+.chart-bar.is-idle { background: var(--border-strong); }
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: .75rem;
+  color: var(--text-mute);
+}
 
 /* The only motion on the page. It fills in once on arrival and eases between
    values on a poll, so a number that moved is visibly a number that moved. */
