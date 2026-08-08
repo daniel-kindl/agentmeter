@@ -23,13 +23,16 @@ const historyRefreshMs = 180_000;
 
 // Steps on the wedge. A step tablet reads by which patch is the last light
 // one, so the strip is built from discrete patches rather than a filled track.
-const wedgeSteps = 20;
+// Ten rather than twenty: the graduation has to separate *adjacent* patches at
+// arm's length across a room, and twenty steps left too little tone between
+// neighbours to see.
+const wedgeSteps = 10;
 
 // How many unpriced models the warning names before it counts the rest.
 const namedModelLimit = 3;
 
 let activeRange = "30d";
-let mountedLive = null;
+let lamp = null;
 let limitsMounted = false;
 
 document.querySelectorAll("[data-range]").forEach((button) => {
@@ -152,11 +155,12 @@ function renderStrip(used) {
     const from = (index * 100) / wedgeSteps;
     const to = ((index + 1) * 100) / wedgeSteps;
     const step = element("div", "wedge-step");
-    // Fixed graduation across the strip, lightest at the unexposed end. It does
+    // Fixed graduation across the strip, denser toward the exposed end. It does
     // not move with the value; that is what makes it a calibration rather than
-    // a fill. The spread has to be wide enough to read across the patches that
-    // remain, or the strip is a segmented bar wearing a tablet's shape.
-    const paper = `hsl(34 22% ${58 + (index / (wedgeSteps - 1)) * 36}%)`;
+    // a fill. What matters is the tone between neighbouring patches, not the
+    // spread end to end: exposure always eats the left, so a graduation whose
+    // range is spent there is gone before anyone reads it.
+    const paper = `hsl(34 22% ${52 + (index / (wedgeSteps - 1)) * 42}%)`;
     if (used >= to) {
       step.classList.add("is-exposed");
     } else if (used > from) {
@@ -237,21 +241,28 @@ function renderLimitFailure(message) {
 
 // The safelight lamp is the live switch. It reads local agent credentials and
 // contacts the configured endpoints, so the control says so rather than only
-// showing that it is on. It is rebuilt only when its state actually changes,
-// because replacing it on every poll would take keyboard focus with it.
+// showing that it is on.
+//
+// It is built once and then updated in place, never replaced. Re-mounting it
+// takes keyboard focus with it, and the moment that matters most is the one
+// right after someone has just operated it.
 function renderLamp(data) {
-  if (mountedLive === data.live) return;
-  mountedLive = data.live;
-  const label = element("label", "lamp");
-  const box = document.createElement("input");
-  box.type = "checkbox";
-  box.checked = data.live;
-  box.addEventListener("change", () => setLive(box.checked, box));
-  label.append(box, element("span", null, data.live ? "Live" : "Estimated"));
-  label.title = data.live
+  if (lamp === null) {
+    const label = element("label", "lamp");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.addEventListener("change", () => setLive(box.checked, box));
+    const text = element("span");
+    label.append(box, text);
+    liveMount.replaceChildren(label);
+    lamp = { label, box, text };
+  }
+  lamp.box.checked = data.live;
+  lamp.box.disabled = false;
+  lamp.text.textContent = data.live ? "Live" : "Estimated";
+  lamp.label.title = data.live
     ? "Reading local agent credentials and contacting the configured endpoints."
     : "Turn on to read local agent credentials and fetch each agent's own figures.";
-  liveMount.replaceChildren(label);
 }
 
 function renderLimits(data) {
@@ -289,7 +300,6 @@ async function setLive(enabled, control) {
     // The server replies with the report the switch produced, so the sheets
     // show the consequence rather than an optimistic guess.
     const data = await response.json();
-    mountedLive = null;
     renderLimits(data);
     // Turning the switch on can succeed while the credentials behind it do
     // not. That reason lives on the source, and saying nothing about it here
@@ -299,7 +309,7 @@ async function setLive(enabled, control) {
   } catch (_) {
     control.checked = !enabled;
     control.disabled = false;
-    setLiveError("The preference could not be saved.");
+    setLiveError("The preference could not be saved. Check that agentmeter is still running, then try again.");
   }
 }
 

@@ -221,7 +221,7 @@ h2 {
 .lamp:has(input:focus-visible) { outline: 2px solid var(--safelight); outline-offset: 2px; }
 .lamp:has(input:disabled) { opacity: .5; cursor: progress; }
 .origin-chip { padding: 5px 11px; border: 1px solid var(--edge); border-radius: 2px; font-family: var(--measure); font-size: .74rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--paper-dim); }
-.origin-chip.live { border-color: var(--safelight); background: #2b1a0b; color: #ffb262; }
+.origin-chip.live { border-color: var(--safelight-dim); color: #d99a55; }
 .origin-chip.stale, .origin-chip.unavailable { border-color: #8a6f2c; background: #241c0d; color: #f2d68f; }
 
 /* History as a test strip: one exposure per day, read by density. A bar chart
@@ -258,7 +258,7 @@ button:focus-visible { outline: 2px solid var(--safelight); outline-offset: 2px;
 .readouts dt { font-family: var(--measure); font-size: .64rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
 .readouts dd { margin: 9px 0 0; font-family: var(--measure); font-size: clamp(1.15rem, 2.4vw, 1.6rem); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 
-.notice { max-width: 68ch; margin: 16px 0 0; padding: 12px 15px; border: 1px solid #5c4a1e; border-radius: 3px; background: #1b1409; color: #e0c07a; font-size: .8rem; }
+.notice { margin: 16px 0 0; padding: 12px 15px; border: 1px solid #5c4a1e; border-radius: 3px; background: #1b1409; color: #e0c07a; font-size: .8rem; }
 
 .logs { display: grid; grid-template-columns: 1fr 1.35fr; gap: 18px; }
 .logs .sheet { margin-top: 18px; }
