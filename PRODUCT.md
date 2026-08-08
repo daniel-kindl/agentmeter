@@ -56,4 +56,7 @@ out that answer.
 
 ## Brand commitments
 
-None inherited. The current look is an unexamined default and carries no authority.
+None inherited. The look is now a considered one, decided by the viewing distance above rather
+than by taste, and recorded in DESIGN.md. Two of its rules are this document's rules wearing
+visual clothes: a derived reading never takes a status colour, and the limits open the page.
+Everything else in DESIGN.md is revisable.

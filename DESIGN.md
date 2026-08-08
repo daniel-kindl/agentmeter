@@ -1,418 +1,325 @@
 ---
 name: agentmeter
-description: A darkroom instrument for reading how much agent headroom is left, glanced at from two metres.
+description: A plain dark instrument for reading how much agent headroom is left, glanced at from two metres.
 colors:
-  ground: "#0b0806"
-  chassis: "#14100c"
-  edge: "#2a2018"
-  paper: "#ece2d0"
-  paper-dim: "#b9ab94"
-  ink: "#f2ebdd"
-  muted: "#9a8b76"
-  safelight: "#ff9a3c"
-  safelight-dim: "#6b3d16"
-  exposed: "#0a0705"
-  caution-ink: "#e0c07a"
-  caution-edge: "#5c4a1e"
-  caution-ground: "#1b1409"
+  bg: "#0d0f12"
+  surface: "#14171c"
+  surface-2: "#1b1f26"
+  border: "#262b33"
+  border-strong: "#333a45"
+  text: "#e8ebef"
+  text-dim: "#a3acb9"
+  text-mute: "#78828f"
+  accent: "#4d9fff"
+  ok: "#3ecf8e"
+  warn: "#f5a524"
+  crit: "#f0616d"
 typography:
-  density:
+  percentage:
     fontFamily: "IBM Plex Mono, ui-monospace, monospace"
-    fontSize: "clamp(2.1rem, 4vw, 3rem)"
+    fontSize: "clamp(2.25rem, 5vw, 3.25rem)"
     fontWeight: 600
-    letterSpacing: "-.04em"
+    letterSpacing: "-0.03em"
+    lineHeight: 1
     fontFeature: "tabular-nums"
   readout:
     fontFamily: "IBM Plex Mono, ui-monospace, monospace"
-    fontSize: "clamp(1.15rem, 2.4vw, 1.6rem)"
+    fontSize: "1.375rem"
     fontWeight: 600
-    letterSpacing: "-.02em"
     fontFeature: "tabular-nums"
-  section-label:
-    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
-    fontSize: "0.72rem"
+  heading:
+    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.875rem"
     fontWeight: 600
-    letterSpacing: "0.2em"
-  rebate-label:
-    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
-    fontSize: "0.68rem"
-    fontWeight: 600
-    letterSpacing: "0.22em"
-  control-label:
-    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
-    fontSize: "0.66rem"
-    fontWeight: 400
-    letterSpacing: "0.14em"
-  figure:
-    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
-    fontSize: "0.84rem"
-    fontWeight: 400
-    fontFeature: "tabular-nums"
   body:
     fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "0.8rem"
+    fontSize: "0.9375rem"
     fontWeight: 400
     lineHeight: 1.5
+  label:
+    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.8125rem"
+    fontWeight: 400
+  caption:
+    fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 400
+  figure:
+    fontFamily: "IBM Plex Mono, ui-monospace, monospace"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    fontFeature: "tabular-nums"
 rounded:
-  step: "1px"
-  control: "2px"
-  sheet: "3px"
+  control: "4px"
+  card: "6px"
 spacing:
   hairline: "2px"
   xs: "4px"
-  sm: "9px"
-  md: "14px"
-  lg: "18px"
-  xl: "22px"
-  gutter: "44px"
-  foot: "72px"
+  sm: "8px"
+  md: "12px"
+  lg: "16px"
+  xl: "20px"
+  gutter: "48px"
+  foot: "64px"
 components:
-  sheet:
-    backgroundColor: "{colors.chassis}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.sheet}"
-    padding: "20px 22px 22px"
-  sheet-estimated:
-    backgroundColor: "{colors.chassis}"
-    textColor: "{colors.paper-dim}"
-    rounded: "{rounded.sheet}"
-  wedge:
-    backgroundColor: "#070504"
+  card:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.card}"
+    padding: "20px"
+  topbar:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text}"
+    padding: "12px 24px"
+  meter:
+    backgroundColor: "{colors.surface-2}"
     rounded: "{rounded.control}"
-    padding: "3px"
-    height: "52px"
-  wedge-step-exposed:
-    backgroundColor: "{colors.exposed}"
-    rounded: "{rounded.step}"
-  rebate:
-    backgroundColor: "{colors.chassis}"
-    textColor: "{colors.safelight}"
-    typography: "{typography.rebate-label}"
-    padding: "9px 22px"
+    height: "12px"
+  meter-fill:
+    backgroundColor: "{colors.ok}"
+    rounded: "{rounded.control}"
+  meter-fill-warn:
+    backgroundColor: "{colors.warn}"
+  meter-fill-critical:
+    backgroundColor: "{colors.crit}"
+  meter-fill-derived:
+    backgroundColor: "{colors.text-mute}"
+  chart-bar:
+    backgroundColor: "{colors.text-dim}"
+    rounded: "2px 2px 0 0"
+  chart-bar-idle:
+    backgroundColor: "{colors.border-strong}"
   range-button:
     backgroundColor: "transparent"
-    textColor: "{colors.muted}"
-    typography: "{typography.control-label}"
+    textColor: "{colors.text-mute}"
+    typography: "{typography.label}"
     rounded: "{rounded.control}"
-    padding: "5px 10px"
+    padding: "4px 10px"
   range-button-active:
-    textColor: "{colors.safelight}"
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.text}"
   lamp:
-    backgroundColor: "#0d0906"
-    textColor: "{colors.muted}"
+    backgroundColor: "{colors.surface-2}"
+    textColor: "{colors.text-dim}"
+    typography: "{typography.label}"
     rounded: "{rounded.control}"
-    padding: "5px 11px 5px 8px"
+    padding: "5px 10px 5px 9px"
   lamp-on:
-    textColor: "{colors.safelight}"
+    textColor: "{colors.text}"
   origin-chip:
-    textColor: "{colors.paper-dim}"
+    textColor: "{colors.text-mute}"
+    typography: "{typography.caption}"
     rounded: "{rounded.control}"
-    padding: "5px 11px"
+    padding: "3px 8px"
+  origin-chip-live:
+    textColor: "{colors.accent}"
   origin-chip-stale:
-    backgroundColor: "{colors.caution-ground}"
-    textColor: "{colors.caution-ink}"
-    rounded: "{rounded.control}"
+    textColor: "{colors.warn}"
   notice:
-    backgroundColor: "{colors.caution-ground}"
-    textColor: "{colors.caution-ink}"
-    rounded: "{rounded.sheet}"
-    padding: "12px 15px"
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.text-dim}"
+    rounded: "{rounded.control}"
+    padding: "11px 14px"
 ---
 
 # Design System: agentmeter
 
 ## Overview
 
-**Creative North Star: "The Darkroom Under Safelight"**
+**Creative North Star: "Read it from two metres."**
 
-The surface is a print room at working temperature: a warm near-black ground, one amber
-safelight, and photographic paper as the only bright material on screen. Nothing here is a
-dev dashboard. There is no wordmark at display size, no stat-card grid, no line chart. The
-limits *are* the page: they open the first viewport at full width and everything else —
-history, cost, per-agent tables — sits below the fold as reference.
+This surface has one job and a fixed viewing distance. It runs on a second monitor in a room
+lit by other screens, is left open for hours, and is glanced at while both hands are busy
+elsewhere. It must answer *how much headroom is left, and when does it come back* without
+being touched, clicked, or leaned toward.
 
-The thesis is that headroom reads as light. A filled progress bar tells you how much you
-have spent; a sheet of paper tells you how much is left to expose. The meter is therefore a
-calibrated step tablet of ten patches whose tone is fixed by position and never by the
-value, blackened from the left as usage consumes it. The reading is which patch is the last
-light one, and that is legible from two metres with both hands busy — the confirmed use
-scene is a second monitor, running for hours, self-refreshing.
+Every decision here is downstream of that distance. The interface is deliberately plain:
+neutral dark surfaces, one step of elevation, hairlines instead of shadow, sentence-case
+labels at readable sizes, and exactly one large element per meter. Nothing is styled to be
+noticed; things are styled to be read.
 
-Density is instrument density, not marketing density. Type is small, letterspaced, and
-almost entirely monospaced; the two-digit percentage is the only thing allowed to be large.
-Grain lies over the whole surface at low opacity so the dark ground reads as material rather
-than as an empty void. Depth is drawn with hairline edges and tonal steps between ground,
-chassis and paper — not with shadow.
+This replaced an earlier metaphor-driven system ("a darkroom under safelight") that encoded
+the limit as a ten-patch tonal step wedge and the history as cell lightness. Both were
+internally coherent and both failed the distance test — a value you have to decode is not a
+value you can glance at.
 
-**Key Characteristics:**
-- Warm near-black ground; paper is the only bright field.
-- One accent — amber safelight — and it only ever means live, active, or at the limit.
-- Ten-patch step tablet with fixed graduation; exposure eats it from the left.
-- Mono for every measured value, with tabular numerals; sans for prose only.
-- Full-surface film grain; hairline borders; radii of 1–3px.
-- One authored motion moment, on first mount only.
+**Key characteristics:**
+- Neutral near-black ground; a single surface step; hairline borders; no shadows.
+- One accent for interaction, three status colours for state, and no decorative colour at all.
+- The limits open the page at full width; history, cost and tables sit below as reference.
+- Meters read by length. History reads by height. Both are the channels people judge most
+  accurately at a distance.
+- Mono with tabular numerals for every number; sans in sentence case for everything else.
+- One motion rule on the whole page.
 
 ## Colors
 
-A warm monochrome darkroom — every neutral sits on the same amber-adjacent hue family — cut
-by exactly one saturated accent.
+A single neutral ramp, one interactive accent, and a three-step status scale. Every text
+colour was measured against its rendered backdrop in the browser; the lowest ratio on the page
+is 4.61:1, above the 4.5:1 AA floor for normal text.
 
 ### Primary
-- **Safelight Amber** (`{colors.safelight}`): the only saturated color in the system. It
-  carries the rebate markings, the live lamp when lit, the reset time on each sheet, the
-  active range button, focus rings, the wet edge of the patch mid-exposure, and the frame of
-  a critical sheet. Nothing decorative ever takes it.
-- **Safelight Dim** (`{colors.safelight-dim}`): the lamp at rest and the border of any
-  control that is on but not shouting. It is the accent's off-state, not a second accent.
+- **Accent Blue** (`{colors.accent}`, 7.0:1): interaction and only interaction — the live
+  switch when lit, the live origin chip, every focus ring. It never marks state.
 
-### Secondary
-- **Caution Amber-Gold** (`{colors.caution-ink}` on `{colors.caution-ground}` with
-  `{colors.caution-edge}`): reserved for the system admitting a gap in its own data — the
-  unpriced-model notice, a lamp error, a stale or unavailable origin chip. It is deliberately
-  desaturated relative to the safelight so it never competes with a real reading.
+### Status
+- **OK Green** (`{colors.ok}`, 9.4:1): a live meter below 75%.
+- **Warn Amber** (`{colors.warn}`, 9.5:1): a live meter from 75% to 89%, the unpriced-model
+  notice rule, a stale or unavailable origin chip, and the live-switch error.
+- **Crit Red** (`{colors.crit}`, 6.0:1): a live meter at 90% or above, and the percentage
+  beside it.
 
 ### Neutral
-- **Darkroom Ground** (`{colors.ground}`): the page. Warm black, never blue-black.
-- **Chassis** (`{colors.chassis}`): every sheet, readout cell and panel; one step up from the
-  ground, which is the entire elevation vocabulary.
-- **Rebate Edge** (`{colors.edge}`): all hairline borders, table rules and grid seams.
-- **Photographic Paper** (`{colors.paper}`): the light end of the wedge graduation, the
-  history strip's unexposed cells, and button hover text.
-- **Paper Dim** (`{colors.paper-dim}`): table figures, chip text, and every numeral on an
-  estimated sheet — paper that has already taken some exposure.
-- **Ink** (`{colors.ink}`): default body and headline text, and the live density numeral.
-- **Muted** (`{colors.muted}`): labels, section headings, legends, idle reset text, controls
-  at rest. Most type on this page is this color.
-- **Exposed** (`{colors.exposed}`): a consumed patch. Slightly darker than the ground so a
-  fully exposed wedge still reads as a thing sitting on the page.
+- **Ground** (`{colors.bg}`): the page.
+- **Surface** (`{colors.surface}`): every card, the top bar, each totals cell. One step up from
+  the ground, and the entire elevation vocabulary.
+- **Surface 2** (`{colors.surface-2}`): the meter track and the active range button.
+- **Border** (`{colors.border}`): all hairlines, table rules and grid seams.
+- **Border Strong** (`{colors.border-strong}`): the active button's edge and an idle chart bar.
+- **Text** (`{colors.text}`, 16.0:1): headings, values, the percentage.
+- **Text Dim** (`{colors.text-dim}`, 8.2:1): labels, prose, table figures, chart bars.
+- **Text Mute** (`{colors.text-mute}`, 4.61:1): captions, axis labels, controls at rest, and a
+  derived meter's fill. Nothing essential is set below this.
 
 ### Working values
+- **Meter Tick** (`--meter-tick`, `rgb(0 0 0 / .45)`): the quarter notches on the meter. An
+  alpha rather than a colour, because it has to read on the empty track and on all four fill
+  colours alike.
 
-Not palette entries, but system values all the same. They were literals scattered through the
-stylesheet until the first detector pass on this document found them; each is now declared
-once in `:root` and referenced everywhere.
+### Named rules
 
-- **Safelight Soft** (`--safelight-soft`, `#d99a55`): the accent at label weight. A live chip
-  has to be recognisable without competing with the alarm, so the one hue carries two
-  intensities rather than the system growing a second colour.
-- **Alarm Ink** (`--alarm-ink`, `#fff`): the only pure white here, spent solely on a limit
-  being reached. It exists because `{colors.ink}` cannot out-read paper at a glance.
-- **Rim Light** (`--rim-light`, `rgb(255 231 199 / .08)`): one paper-tint hairline, used
-  wherever adjacent dark cells must stay countable — exposed wedge patches and history strip
-  cells. These were `.07` and `.08` for the same job, which is precisely the drift a recorded
-  system exists to catch.
-- **Mask Opaque** (`--mask-opaque`, `#000`): an alpha channel for the rebate perforation mask.
-  Never painted, and not a colour decision despite its form.
+**The Accent Is Not A State.** Blue means *you can operate this*. If a new element wants to
+say something is wrong, nearly full, or fine, it uses the status scale. If it wants attention
+for its own sake, it gets a neutral.
 
-### Named Rules
-**The One Safelight Rule.** There is one accent hue. If a new element wants a color, it gets
-muted, paper-dim, or nothing. Amber is spent only on *live*, *active*, *focused*, or *at the
-limit*.
+**The Provenance Rule.** Status colour belongs to measured readings only. A derived estimate
+is measured against the busiest window in local history, so it reaches 100% the moment the
+current window is the busiest one recorded — an artefact of a thin baseline, not a limit being
+reached. A derived meter therefore stays `{colors.text-mute}` at every value and labels itself
+`uncalibrated`. This is a product constraint from PRODUCT.md before it is a visual one, and it
+is enforced in `meterState()` in `web/app.js`.
 
-**The Fixed Graduation Rule.** The wedge's paper tones (`hsl(34 22% 52%)` at the exposed end
-to `hsl(34 22% 94%)` at the fresh end) are a function of patch position, never of the value.
-A scale that moves with its reading is not a scale.
-
-**The Provenance Rule.** Alarm color belongs to measured readings only. A derived estimate
-never turns amber and never turns white — it goes dashed, drops to paper-dim, and labels
-itself `uncalibrated`. This is a product constraint from PRODUCT.md before it is a visual one.
+**No Shadows.** Depth is the ground/surface step plus a hairline. Shadow blurs at the viewing
+distance this page is designed for and buys nothing at any other.
 
 ## Typography
 
-**Body Font:** IBM Plex Sans (with `ui-sans-serif`, `system-ui`)
-**Measurement Font:** IBM Plex Mono (with `ui-monospace`, `monospace`)
+**Body:** IBM Plex Sans (with `ui-sans-serif`, `system-ui`)
+**Numbers:** IBM Plex Mono (with `ui-monospace`, `monospace`)
 
-Both are self-hosted as woff2 and embedded in the binary — a dashboard about private usage
-never calls a font CDN. Four files ship: Sans 400/600 and Mono 400/600. There are no other
-weights, and no italics.
+Both are self-hosted woff2 embedded in the binary — a dashboard about private usage never
+calls a font CDN. Four files ship: Sans 400/600 and Mono 400/600. No other weights, no italics.
 
-**Character:** engineered and unglamorous. Plex Mono does the instrument work — it is the
-face of a densitometer readout — while Plex Sans appears only where actual sentences occur.
-The register is a lab panel someone reads at speed, not a product page.
+Every number on the page is mono with `font-variant-numeric: tabular-nums`, so a figure that
+changes on a poll does not reflow the row it sits in. Everything else is sans in sentence case
+at normal tracking. There is no uppercase-plus-letterspacing treatment anywhere; the previous
+system set nearly all of its labels that way, which is the least legible configuration
+available for small text.
 
 ### Hierarchy
-- **Density** (`{typography.density}`): the two-digit percentage beside each wedge. The only
-  large type on the page, negatively tracked and right-aligned against a `3.6ch` minimum so
-  digits never shift the wedge. Its trailing `%` drops to 0.42em in muted.
-- **Readout** (`{typography.readout}`): the four totals in the readout row.
-- **Section Label** (`{typography.section-label}`, uppercase): every `h2`. Headings are
-  labels here, not headlines — they identify a panel and then get out of the way.
-- **Rebate Label** (`{typography.rebate-label}`, uppercase): the top strip's markings, the
-  widest tracking in the system.
-- **Control Label** (`{typography.control-label}`, uppercase): range buttons (0.14em), lamps
-  and chips (0.16–0.18em), strip legend (0.62rem/0.12em).
-- **Figure** (`{typography.figure}`): table cells and inline measured values inside prose.
-- **Body** (`{typography.body}`): notices, wedge notes, status text. Errors cap at `44ch`.
+| Role | Token | Size |
+|---|---|---|
+| Meter percentage | `{typography.percentage}` | clamp(2.25rem, 5vw, 3.25rem) / 600 |
+| Totals readout | `{typography.readout}` | 1.375rem / 600 |
+| Card heading | `{typography.heading}` | 0.875rem / 600 |
+| Body and messages | `{typography.body}` | 0.9375rem / 400 |
+| Window label, reset, note, controls | `{typography.label}` | 0.8125rem / 400 |
+| Captions, axis, chips, table headers | `{typography.caption}` | 0.75rem / 400 |
+| Table figures | `{typography.figure}` | 0.875rem / 400, tabular |
 
-### Named Rules
-**The Mono-Is-Measurement Rule.** Every percentage, token count, cost, reset time, table
-figure and label is set in Plex Mono with `tabular-nums`. Sans is for sentences only. When
-prose contains a measured value, that segment switches to mono mid-sentence so the figure
-lines up with the instrument above it.
+### Named rules
 
-**The Label-Not-Headline Rule.** No type between 0.84rem and 2.1rem exists. A surface either
-whispers at label scale or states a reading at density scale; there is no middle voice.
+**One Large Thing.** The meter percentage is the only element allowed above 1.5rem. It is what
+resolves first from across the room; if a second element competed, neither would.
 
 ## Layout
 
-A single centered column, `min(1240px, 100% - 44px)`, with `72px` of foot clearance. The
-rebate strip is full-bleed above it.
+`main` is `min(1180px, 100% - 48px)`, centred, with the top bar full-bleed above it.
 
-Limit sheets are the first and largest thing: an auto-fit grid with a `430px` minimum track,
-so two sheets sit side by side on a wide monitor and one fills the width otherwise. Its
-control bar spans the full grid (`grid-column: 1 / -1`). Below the fold, history sits in one
-sheet, the four totals in a four-column readout row seamed with 1px gaps that show the border
-color through, and the two log tables in a `1fr 1.35fr` pair.
+Reading order is fixed by the job: limits, totals, the unpriced-model notice, daily usage, then
+the per-agent and per-model tables. Limits are a `repeat(auto-fit, minmax(360px, 1fr))` grid so
+two agents sit side by side on a wide screen and stack below 900px. Cards are top-aligned, not
+stretched — matching a two-row table to a nine-row one only buys empty space.
 
-Spacing rhythm is tight and odd-numbered by intent: `2px` between patches and cells, `9/10px`
-inside controls, `14/16/18px` between related blocks, `22px` inside a sheet and between
-wedges. Sheets stack at `18px`.
+### Named rules
 
-One breakpoint, at `900px`: the gutter narrows to `28px`, limits, logs collapse to one
-column, readouts fold to 2×2, the sprocket perforations are dropped, and the wedge shortens
-from `52px` to `42px`. Nothing else changes — the instrument is the same instrument on a
-laptop.
+**Every Track Is `minmax(0, …)`.** A grid track sized `auto` refuses to shrink below its
+content, so one long model name is enough to push the whole document wider than the viewport.
+Tables scroll inside their own card instead.
 
-### Named Rules
-**The Limits-Are-The-Page Rule.** The first viewport is the rebate strip and the limit
-sheets. Nothing — no wordmark block, no summary cards, no chart — may be inserted above them.
+**Breakpoints:** 900px collapses every multi-column grid to one column; 480px stacks the
+totals row and tightens the top bar.
 
-## Elevation & Depth
+## Elevation & depth
 
-No shadows are used for elevation. Depth is tonal and hairline: ground → chassis → paper, one
-step apart, separated by 1px borders in the edge color. Every panel sits flat on the page.
-
-Shadow exists only as light, never as lift. Three of the four shadow declarations are inset
-1px rims that give a patch its own boundary; the two outer glows are safelight bloom on a lit
-lamp and on a critical wedge frame. A shadow in this system means something is emitting.
-
-### Shadow Vocabulary
-- **Patch rim** (`inset 0 0 0 1px rgb(10 7 5 / .35)`, and `rgb(255 231 199 / .07)` on an
-  exposed patch, `rgb(255 231 199 / .08)` on a history cell): separates adjacent tones so a
-  ten-step ramp stays countable.
-- **Wet edge** (`inset 0 0 0 1px rgb(255 154 60 / .55), 0 0 11px -2px rgb(255 154 60 / .7)`):
-  the single patch currently mid-exposure.
-- **Critical frame** (`0 0 0 1px rgb(255 154 60 / .5), 0 0 26px -6px rgb(255 154 60 / .55)`):
-  a live reading at or above 90.
-- **Lamp bloom** (`0 0 9px 1px rgb(255 154 60 / .85)`): the lit safelight dot.
-
-### Named Rules
-**The Emission Rule.** Shadows are glow, not drop. If an element is not emitting safelight,
-it gets a border and no shadow.
+Two surfaces and a hairline. `{colors.bg}` is the page, `{colors.surface}` is anything sitting
+on it, `{colors.border}` separates things that touch. There is no third level, no shadow
+vocabulary, and no blur.
 
 ## Shapes
 
-Radii are almost absent and strictly tiered: `3px` for sheets, notices and the readout block;
-`2px` for controls, chips and the wedge frame; `1px` for individual patches and history cells.
-Nothing is pill-shaped except the 8px lamp dot, which is a circle because it is a bulb.
-
-Borders are always 1px and always the edge color, with three deliberate exceptions: the
-safelight-dim border of an engaged control, the safelight border of a critical wedge, and the
-caution border of a notice. Dashed 1px is a semantic, not a style: it marks an instrument that
-is not measuring — the loading status block, an estimated sheet, and that sheet's wedge frame.
-
-The recurring silhouette is the strip: a horizontal run of small equal cells with 2px gaps —
-the wedge, the history test strip, the readout row, and the perforations all repeat it.
+`{rounded.control}` on controls, chips, meters and notices; `{rounded.card}` on cards. Chart
+bars are rounded on their top corners only, so the baseline stays a straight line.
 
 ## Components
 
-### Range Buttons (Navigation)
-Ghost by default, and the only navigation on the page.
-- **Shape:** near-square (2px), 1px transparent border reserving the active state's space.
-- **Default:** transparent on chassis, muted uppercase mono at 0.66rem/0.14em.
-- **Hover:** text lifts to paper. No background change, ever.
-- **Active:** safelight text on a safelight-dim border.
-- **Focus:** `2px solid` safelight ring, offset `2px`. Identical across every focusable
-  element in the system.
+### Meter (signature component)
+A track at `{colors.surface-2}`, 12px tall, with a fill whose width is the utilisation
+percentage and whose colour is the status. Quarter notches are drawn *above* the fill so the
+bar can be read on its own. The percentage sits to its left with the word `used` beneath it,
+so the row states its own units. The fill transitions width over 0.4s, which covers both the
+first paint and every subsequent poll.
 
-### Sheets (Cards)
-The primary container; a sheet of paper in a tray.
-- **Corner Style:** 3px.
-- **Background:** chassis, on the darkroom ground.
-- **Border:** 1px edge. Dashed when the sheet's data is estimated.
-- **Shadow:** none (see Elevation).
-- **Padding:** `20px 22px 22px`; head row is a baseline-aligned flex with 16px gap.
+### Chart (signature component)
+One bar per day, height proportional to that day's tokens against the range peak, in
+`{colors.text-dim}` — history is reference material and must not out-shout the meters above
+it. Idle days keep a 2% stub in `{colors.border-strong}`, so a quiet week reads as quiet days
+rather than as a gap in the axis. The axis carries the first date, the peak value, and the last
+date; without the peak the chart says which day was busiest and never how busy.
 
-### Lamp (Toggle)
-The live switch, styled as a safelight rather than as a checkbox. The native input is
-visually hidden and the label carries every state via `:has()`.
-- **Off:** edge border, muted text, dot in safelight-dim.
-- **On:** safelight-dim border, safelight text, dot in full safelight with bloom.
-- **Busy:** 50% opacity, `cursor: progress`.
+### Card
+`{colors.surface}` on a hairline, 20px padding, heading and origin chip in the header row.
 
-### Origin Chips
-A one-word statement of where a reading came from.
-- **Default (estimated):** edge border, paper-dim, uppercase mono 0.74rem/0.16em, weight 600.
-- **Live:** safelight-dim border with a softened amber text.
-- **Stale / unavailable:** the caution palette — gold on dark gold with a gold border.
+### Origin chip
+Tinted border and text, never a filled background: `live` takes the accent, `stale` and
+`no reading` take warn, `uncalibrated` takes the neutral border and mute text.
+
+### Lamp (live switch)
+A checkbox styled as a bordered pill with a dot. Lit, it takes the accent and reads `Live`; at
+rest it reads `Estimated`. It is built once and updated in place — remounting it would take
+keyboard focus with it at exactly the moment someone has just operated it.
+
+### Range buttons
+Text buttons; the active one takes a `{colors.surface-2}` fill and a `{colors.border-strong}`
+edge rather than the accent, so selection does not compete with the live switch.
 
 ### Tables
-- Right-aligned, first column left. 1px top rules only; no verticals, no zebra.
-- Headers in mono 0.62rem/0.16em uppercase muted at weight 400.
-- Every non-first cell is mono with tabular numerals in paper-dim; the label column stays in
-  the default ink so the figures read as a block.
+Sentence-case headers in `{typography.caption}`, hairline row rules, no zebra, first column in
+`{colors.text}` and figures in mono. Wrapped in an `overflow-x: auto` container.
 
-### Step Wedge (Signature Component)
-The instrument the whole world exists to hold. Ten patches in a 52px frame with 2px gaps.
-Each patch's tone comes from its index (`hsl(34 22% L%)`, L from 52 to 94) and is fixed.
-Usage exposes patches from the left; the single patch straddling the value gets a hard-stop
-linear gradient at the exact crossing percentage plus the wet-edge glow. Ten was chosen over
-twenty because twenty leaves too little tone between neighbours to read at distance.
-
-Beside it sits the density numeral: ink when live and normal, safelight at 75+, white on a
-safelight-framed wedge at 90+, and paper-dim whenever the reading is estimated.
-
-### Test Strip (Signature Component)
-Daily history as one exposure per day, read by density, not as a bar chart — a bar chart at
-88px cannot be read across a room. Lightness runs `90% - (used/max) * 72` on the same paper
-hue, stopping short of the ground so the busiest day reads as the darkest exposure rather
-than as a hole. Idle days are filled in rather than omitted, so the strip does not misreport
-elapsed time. A two-ended legend below states the direction of the scale.
+### Notice
+A left rule in `{colors.warn}` on a plain surface. It informs without alarming, which is right
+for the system admitting a gap in its own data.
 
 ### Motion
-One authored moment: the `develop` keyframe (opacity 0→1, `brightness(.35)`→none) over
-`.9s cubic-bezier(.16, 1, .3, 1)`, playing once on first mount and gated off by the
-`is-settled` class thereafter. The 60-second limit poll and the 180-second history poll
-replace values silently. The animation is removed entirely under
-`prefers-reduced-motion: reduce`.
+One rule on the page: `.meter-fill { transition: width .4s ease }`, disabled under
+`prefers-reduced-motion`. There are no keyframes and no entrance animation.
 
-**The Print-Comes-Up-Once Rule.** Motion belongs to arriving at the page. A refresh is not an
-arrival, and nothing on this surface may animate on a poll.
+## Do's and don'ts
 
-## Do's and Don'ts
+### Do
+- Put the number and the bar in the same row, and let the bar be the redundant one.
+- Use the status scale for state and the accent for interaction.
+- Set every figure in mono with tabular numerals.
+- Say what a reading is when it is not measured — `uncalibrated` is information, not an excuse.
+- Distinguish "no block open" from "no fixed reset"; they are different facts.
+- Keep new grid tracks at `minmax(0, …)`.
 
-### Do:
-- **Do** put every measured value in IBM Plex Mono with `font-variant-numeric: tabular-nums`,
-  including values embedded mid-sentence.
-- **Do** express any new meter as a fixed graduation that gets consumed, not as a fill that
-  grows.
-- **Do** reserve safelight amber for live, active, focused, and at-limit states.
-- **Do** mark an instrument that is not measuring with a dashed 1px border and a word — never
-  with color alone.
-- **Do** keep new panels flat: chassis fill, 1px edge border, 3px radius, no shadow.
-- **Do** give every focusable element the same `2px solid` safelight ring at `2px` offset.
-- **Do** design for a two-metre glance first: if a new element cannot be read from across the
-  room, it belongs below the fold.
-
-### Don't:
-- **Don't** introduce a second accent hue. Caution gold is for the system's own data gaps and
-  is not available as decoration.
-- **Don't** apply warn or critical styling to a derived estimate; a thin baseline hitting
-  100% is an artefact, and coloring it is the page telling a lie.
-- **Don't** animate anything on the refresh poll.
-- **Don't** use drop shadows for elevation; depth is tonal, and glow means emission.
-- **Don't** add a display-scale wordmark or a masthead block above the limits.
-- **Don't** add a line or bar chart to this surface; history is read as density.
-- **Don't** fetch a font, script or stylesheet from a CDN — the three files are served
-  verbatim from the Go binary's embedded filesystem, with no build step and no framework.
-- **Don't** exceed the four shipped font files (Sans 400/600, Mono 400/600), and don't use
-  italics.
-
----
-
-*Recorded from the shipped build of `web/style.css`, `web/index.html` and `web/app.js`.
-Review status, stated honestly: the finish review returned disposition "fix" twice. Eight
-material findings were applied and scored (seven resolved, one partial); the partial and
-three regressions were then fixed, but the second verdict pass never completed — the reviewer
-terminated on a session limit. The final batch is unverified by the reviewer, and this build
-is not review-passed.*
+### Don't
+- Add a fourth surface level, a shadow, or a gradient.
+- Colour a derived reading.
+- Spend the accent on anything that is not operable.
+- Set a label in uppercase with letterspacing.
+- Encode a quantity as lightness, saturation, or texture.
+- Add a second large element to the first viewport.
+- Introduce a frontend framework, a build step, or a CDN asset. See PRODUCT.md.
