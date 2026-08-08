@@ -62,11 +62,14 @@ agentmeter serve --budget-5h 1900000 --budget-7d 20000000
 
 ### Authoritative limits (opt-in, off by default)
 
-`--live` replaces the estimates with the numbers the agents themselves report:
+Turn on **Live** in the dashboard's top strip, or start with the flag:
 
 ```sh
 agentmeter up --live
 ```
+
+Either way the choice is remembered, so the switch survives a restart. The flag still wins
+for the run it is given in.
 
 Read this before using it. Unlike everything else agentmeter does, `--live`:
 
@@ -88,6 +91,41 @@ cached for three minutes, and any failure falls back to the last known values, o
 derived estimate, rather than blanking the panel.
 
 See [ADR-0003](docs/adr/0003-opt-in-authoritative-limit-providers.md) for the reasoning.
+
+## Configuration
+
+Optional. A missing file behaves exactly as shipped, so nothing has to be configured. Place
+`config.json` beside the database, in `agentmeter/` under the OS user configuration
+directory:
+
+```json
+{
+  "limits": {
+    "five_hour_budget": 1900000,
+    "seven_day_budget": 20000000,
+    "providers": [
+      { "source": "claude", "kind": "anthropic-oauth" },
+      { "source": "codex", "kind": "chatgpt-usage", "disabled": true }
+    ]
+  }
+}
+```
+
+Provider endpoints are configuration rather than constants because both are undocumented and
+can move without notice; when one does, point agentmeter at the new address instead of
+waiting for a release. Every field is optional:
+
+| Field | Effect when omitted |
+|---|---|
+| `kind` | required — `anthropic-oauth` or `chatgpt-usage` |
+| `base_url` | the vendor's default endpoint |
+| `credential_path` | the agent's standard credentials location |
+| `user_agent` | the identifier the endpoint expects; some throttle callers that omit it |
+| `disabled` | the provider stays active |
+
+Unknown keys are rejected rather than ignored, because a typo in a hand-written file is
+likelier than a deliberate extension and silently skipping it produces a setting that looks
+applied and is not.
 
 ## Privacy
 
