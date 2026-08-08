@@ -27,35 +27,43 @@
 
 :root {
   color-scheme: dark;
-  /* A darkroom is warm black, not blue black: the ground is lit by safelight
-     and nothing else. The scene is a second monitor watched for hours, so the
-     surface stays dark and only the paper carries light. */
-  --ground: #0b0806;
-  --chassis: #14100c;
-  --edge: #2a2018;
-  --paper: #ece2d0;
-  --paper-dim: #b9ab94;
-  --ink: #f2ebdd;
-  --muted: #9a8b76;
-  --safelight: #ff9a3c;
-  --safelight-dim: #6b3d16;
-  /* Safelight at label weight, for a status that must be recognisable without
-     competing with the alarm. One accent hue, two intensities. */
-  --safelight-soft: #d99a55;
-  --exposed: #0a0705;
-  /* The only pure white in the system, spent solely on a limit being reached:
-     it has to out-read paper, which --ink does not. */
-  --alarm-ink: #fff;
-  /* One paper-tint hairline, used wherever adjacent dark cells must stay
-     countable. Two near-identical alphas for the same job was drift. */
-  --rim-light: rgb(255 231 199 / .08);
-  /* Alpha channel for masks, never painted as a colour. */
-  --mask-opaque: #000;
 
-  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  background: var(--ground);
-  color: var(--ink);
-  --measure: "IBM Plex Mono", ui-monospace, monospace;
+  /* One neutral ramp and exactly one step of elevation. This page is read from
+     about two metres on a second monitor, so depth is drawn with hairlines and
+     a single surface lift rather than with shadow, which blurs at that range. */
+  --bg: #0d0f12;
+  --surface: #14171c;
+  --surface-2: #1b1f26;
+  --border: #262b33;
+  --border-strong: #333a45;
+
+  /* Three text weights, each at least 4.5:1 on the ground at the sizes it is
+     used for. Nothing on this page is allowed to be decoratively faint. */
+  --text: #e8ebef;
+  --text-dim: #a3acb9;
+  --text-mute: #78828f;
+
+  /* The accent means interactive, and only that: the live switch, focus rings.
+     Status carries its own three colours, so "at the limit" never has to share
+     a hue with "you can click this". */
+  --accent: #4d9fff;
+  --ok: #3ecf8e;
+  --warn: #f5a524;
+  --crit: #f0616d;
+
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius-card: 6px;
+  --radius-control: 4px;
+
+  /* Superseded by the meter and the bar chart in the following two commits.
+     Declared here only so this commit leaves a page that still renders. */
+  --edge: var(--border);
+  --exposed: var(--bg);
+  --paper: var(--text);
+  --rim-light: rgb(255 255 255 / .06);
+  --safelight: var(--accent);
 }
 
 * { box-sizing: border-box; }
@@ -63,237 +71,176 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--ground);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: .9375rem;
+  line-height: 1.5;
 }
 
-/* Grain sits over the whole surface. Photographic material is never perfectly
-   flat, and at a glancing distance the texture is what stops the dark ground
-   reading as an empty void. */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  pointer-events: none;
-  opacity: .38;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='.5'/%3E%3C/svg%3E");
-}
-
-/* Film rebate: the edge of the strip, carrying the markings that identify the
-   stock. It replaces a masthead, because a wordmark at display size would eat
-   the viewport the limits need. */
-.rebate {
+/* A plain bar. The wordmark is set at body size because a masthead would spend
+   the top of the viewport that the limits need. */
+.topbar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 9px 22px;
-  border-bottom: 1px solid var(--edge);
-  background: linear-gradient(180deg, #191309, #100c08);
-  font-family: var(--measure);
-  font-size: .68rem;
-  letter-spacing: .22em;
-  color: var(--safelight);
-  text-transform: uppercase;
+  gap: 16px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
-.rebate-mark { font-weight: 600; }
-.rebate-zone { color: var(--muted); letter-spacing: .14em; }
-/* Sprocket holes, drawn rather than decorated with: they are the reason the
-   strip reads as film and not as a toolbar. */
-.rebate-perf {
-  flex: 1;
-  height: 11px;
-  background-image: repeating-linear-gradient(90deg, var(--ground) 0 9px, transparent 9px 22px);
-  -webkit-mask-image: linear-gradient(90deg, transparent, var(--mask-opaque) 12%, var(--mask-opaque) 88%, transparent);
-  mask-image: linear-gradient(90deg, transparent, var(--mask-opaque) 12%, var(--mask-opaque) 88%, transparent);
-  opacity: .5;
-}
-.rebate-lamp { display: inline-flex; }
-
-main { width: min(1240px, calc(100% - 44px)); margin: auto; padding-bottom: 72px; }
-
-h2 {
-  margin: 0;
-  font-family: var(--measure);
-  font-size: .72rem;
-  font-weight: 600;
-  letter-spacing: .2em;
-  text-transform: uppercase;
-  color: var(--muted);
+.topbar-mark { font-weight: 600; }
+.topbar-zone {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: .8125rem;
+  color: var(--text-mute);
 }
 
-.sheet {
-  margin-top: 18px;
-  padding: 20px 22px 22px;
-  border: 1px solid var(--edge);
-  border-radius: 3px;
-  background: var(--chassis);
+main { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 24px 0 64px; }
+
+.card {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
 }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.card-head h2 { margin: 0; font-size: .875rem; font-weight: 600; color: var(--text); }
 
 #status {
-  margin: 64px 0;
-  padding: 60px 24px;
-  border: 1px dashed var(--edge);
-  border-radius: 3px;
-  color: var(--muted);
+  max-width: 46ch;
+  margin: 96px auto;
+  color: var(--text-dim);
   text-align: center;
-  font-family: var(--measure);
-  font-size: .8rem;
-  letter-spacing: .1em;
 }
 
-/* Limits: the page. */
-#limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); align-items: start; gap: 18px; padding-top: 24px; }
-.limit-bar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-
-.wedges { display: grid; gap: 22px; margin-top: 22px; }
-.wedge-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
-.wedge-name { font-family: var(--measure); font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
-.wedge-reset { font-family: var(--measure); font-size: .74rem; letter-spacing: .08em; color: var(--safelight); }
-
-.wedge-row { display: flex; align-items: center; gap: 18px; margin-top: 10px; }
-
-/* A step tablet, not a filled track. Discrete patches carry a fixed graduation
-   that does not move with the value; exposure blackens them from the left, and
-   the reading is which patch is the last light one. The patch count and the
-   tone of each live in renderStrip, which is the one place that decides them. */
-.wedge {
-  display: flex;
-  gap: 2px;
-  flex: 1;
-  height: 52px;
-  padding: 3px;
-  border: 1px solid var(--edge);
-  border-radius: 2px;
-  background: #070504;
-}
-.wedge-step {
-  flex: 1;
-  border-radius: 1px;
-  box-shadow: inset 0 0 0 1px rgb(10 7 5 / .35);
-}
-.wedge-step.is-exposed { background: var(--exposed); box-shadow: inset 0 0 0 1px var(--rim-light); }
-/* The safelight catches the wet edge, the one patch mid-exposure. */
-.wedge-step.is-edge { box-shadow: inset 0 0 0 1px rgb(255 154 60 / .55), 0 0 11px -2px rgb(255 154 60 / .7); }
-
-.wedge-value {
-  min-width: 3.6ch;
-  font-family: var(--measure);
-  font-size: clamp(2.1rem, 4vw, 3rem);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -.04em;
-  text-align: right;
-  color: var(--ink);
-}
-.wedge-value span { font-size: .42em; letter-spacing: .08em; color: var(--muted); }
-.wedge-row.is-warn .wedge-value { color: var(--safelight); }
-/* At the edge the paper is nearly gone; the numeral takes the safelight and
-   the frame lights with it, which is what carries across a room. */
-.wedge-row.is-critical .wedge-value { color: var(--alarm-ink); }
-.wedge-row.is-critical .wedge { border-color: var(--safelight); box-shadow: 0 0 0 1px rgb(255 154 60 / .5), 0 0 26px -6px rgb(255 154 60 / .55); }
-
-.wedge-note { margin: 9px 0 0; font-size: .8rem; line-height: 1.5; color: var(--muted); }
-.wedge-note b { font-family: var(--measure); font-weight: 400; font-variant-numeric: tabular-nums; color: var(--paper-dim); }
-
-/* An estimated sheet is an uncalibrated instrument, and says so in its frame
-   rather than only in its caption. The paper patches stay solid: hatching them
-   read as a disabled control rather than as a reading of lower authority. */
-.sheet.is-estimated { border-style: dashed; }
-.sheet.is-estimated .wedge { border-style: dashed; }
-.sheet.is-estimated .wedge-value { color: var(--paper-dim); }
-.wedge-reset.is-idle { color: var(--muted); }
-.lamp-error { max-width: 44ch; color: #e0c07a; font-size: .72rem; line-height: 1.45; text-align: right; }
+/* The limits are the reason the page exists, so they open it at full width and
+   everything else sits below them as reference. */
+#limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); align-items: start; gap: 16px; }
 
 .lamp {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 11px 5px 8px;
-  border: 1px solid var(--edge);
-  border-radius: 2px;
-  background: #0d0906;
-  color: var(--muted);
-  font-family: var(--measure);
-  font-size: .64rem;
-  letter-spacing: .18em;
-  text-transform: uppercase;
+  padding: 5px 10px 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: .8125rem;
   cursor: pointer;
 }
-.lamp::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--safelight-dim);
-}
+.lamp::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--text-mute); }
 .lamp input { position: absolute; opacity: 0; width: 0; height: 0; }
-.lamp:has(input:checked) { border-color: var(--safelight-dim); color: var(--safelight); }
-.lamp:has(input:checked)::before { background: var(--safelight); box-shadow: 0 0 9px 1px rgb(255 154 60 / .85); }
-.lamp:has(input:focus-visible) { outline: 2px solid var(--safelight); outline-offset: 2px; }
-.lamp:has(input:disabled) { opacity: .5; cursor: progress; }
-.origin-chip { padding: 5px 11px; border: 1px solid var(--edge); border-radius: 2px; font-family: var(--measure); font-size: .74rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--paper-dim); }
-.origin-chip.live { border-color: var(--safelight-dim); color: var(--safelight-soft); }
-.origin-chip.stale, .origin-chip.unavailable { border-color: #8a6f2c; background: #241c0d; color: #f2d68f; }
+.lamp:has(input:checked) { border-color: var(--accent); color: var(--text); }
+.lamp:has(input:checked)::before { background: var(--accent); }
+.lamp:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lamp:has(input:disabled) { opacity: .55; cursor: progress; }
+.lamp-error { max-width: 46ch; color: var(--warn); font-size: .8125rem; text-align: right; }
 
-/* History as a test strip: one exposure per day, read by density. A bar chart
-   at this size cannot be read from across a room; a tonal run can. */
-.teststrip { display: flex; gap: 2px; height: 88px; margin-top: 16px; }
-.teststrip div {
-  flex: 1;
-  min-width: 3px;
-  border-radius: 1px;
-  background: var(--cell, var(--paper));
-  box-shadow: inset 0 0 0 1px var(--rim-light);
+/* Provenance is a label, not a decoration: a chip states where a reading came
+   from, and an estimate never borrows the accent to look authoritative. */
+.origin-chip {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  font-size: .75rem;
+  color: var(--text-mute);
 }
-.strip-legend { display: flex; justify-content: space-between; margin: 9px 0 0; font-family: var(--measure); font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.origin-chip.live { border-color: var(--accent); color: var(--accent); }
+.origin-chip.stale, .origin-chip.unavailable { border-color: var(--warn); color: var(--warn); }
 
-nav { display: flex; gap: 2px; }
+nav { display: flex; gap: 4px; }
 button {
   border: 1px solid transparent;
-  border-radius: 2px;
-  padding: 5px 10px;
+  border-radius: var(--radius-control);
+  padding: 4px 10px;
   background: transparent;
-  color: var(--muted);
-  font-family: var(--measure);
-  font-size: .66rem;
-  letter-spacing: .14em;
-  text-transform: uppercase;
+  color: var(--text-mute);
+  font-family: inherit;
+  font-size: .8125rem;
   cursor: pointer;
 }
-button:hover { color: var(--paper); }
-button.active { border-color: var(--safelight-dim); color: var(--safelight); }
-button:focus-visible { outline: 2px solid var(--safelight); outline-offset: 2px; }
+button:hover { background: var(--surface-2); color: var(--text); }
+button.active { border-color: var(--border-strong); background: var(--surface-2); color: var(--text); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.readouts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 18px 0 0; padding: 0; background: var(--edge); border: 1px solid var(--edge); border-radius: 3px; }
-.readouts div { padding: 18px 20px; background: var(--chassis); }
-.readouts dt { font-family: var(--measure); font-size: .64rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
-.readouts dd { margin: 9px 0 0; font-family: var(--measure); font-size: clamp(1.15rem, 2.4vw, 1.6rem); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-
-.notice { margin: 16px 0 0; padding: 12px 15px; border: 1px solid #5c4a1e; border-radius: 3px; background: #1b1409; color: #e0c07a; font-size: .8rem; }
-
-.logs { display: grid; grid-template-columns: 1fr 1.35fr; gap: 18px; }
-.logs .sheet { margin-top: 18px; }
-table { width: 100%; margin-top: 14px; border-collapse: collapse; font-size: .84rem; }
-th, td { padding: 10px 8px; border-top: 1px solid var(--edge); text-align: right; }
-th { font-family: var(--measure); font-size: .64rem; font-weight: 400; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
-th:first-child, td:first-child { text-align: left; }
-td:not(:first-child) { font-family: var(--measure); font-variant-numeric: tabular-nums; color: var(--paper-dim); }
-
-/* One authored moment: the exposure develops in, the way a print comes up in
-   the tray. It happens once on load, not on every poll. */
-@keyframes develop { from { opacity: 0; filter: brightness(.35); } to { opacity: 1; filter: none; } }
-#limits:not(.is-settled) .wedge { animation: develop .9s cubic-bezier(.16, 1, .3, 1) both; }
-
-@media (prefers-reduced-motion: reduce) {
-  #limits .wedge { animation: none; }
+.readouts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin: 16px 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--border);
+  overflow: hidden;
+}
+.readouts div { padding: 16px; background: var(--surface); }
+.readouts dt { font-size: .75rem; color: var(--text-mute); }
+.readouts dd {
+  margin: 6px 0 0;
+  font-family: var(--mono);
+  font-size: 1.375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
+/* The system admitting a gap in its own data. Marked with the warn hue on the
+   rule rather than as a filled panel, so it informs without alarming. */
+.notice {
+  margin: 16px 0 0;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: .875rem;
+}
+
+.logs { display: grid; grid-template-columns: 1fr 1.35fr; gap: 16px; }
+.stack { display: grid; gap: 16px; margin-top: 16px; }
+table { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: .875rem; }
+th, td { padding: 9px 8px; border-top: 1px solid var(--border); text-align: right; }
+th { font-size: .75rem; font-weight: 400; color: var(--text-mute); }
+th:first-child, td:first-child { text-align: left; }
+td:not(:first-child) { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text-dim); }
+
+.wedges { display: grid; gap: 20px; margin-top: 18px; }
+.wedge-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.wedge-name { font-size: .8125rem; color: var(--text-dim); }
+.wedge-reset { font-family: var(--mono); font-size: .8125rem; color: var(--text-dim); }
+.wedge-reset.is-idle { color: var(--text-mute); }
+.wedge-row { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
+.wedge { display: flex; gap: 2px; flex: 1; height: 44px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-2); }
+.wedge-step { flex: 1; border-radius: 1px; }
+.wedge-step.is-exposed { background: var(--bg); box-shadow: inset 0 0 0 1px var(--rim-light); }
+.wedge-value {
+  min-width: 3.6ch;
+  font-family: var(--mono);
+  font-size: clamp(2.1rem, 4vw, 3rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.03em;
+  text-align: right;
+}
+.wedge-value span { font-size: .42em; color: var(--text-mute); }
+.wedge-note { margin: 8px 0 0; font-size: .8125rem; color: var(--text-mute); }
+.wedge-note b { font-family: var(--mono); font-weight: 400; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+
+.teststrip { display: flex; gap: 2px; height: 88px; margin-top: 16px; }
+.teststrip div { flex: 1; min-width: 3px; border-radius: 1px; background: var(--cell, var(--surface-2)); }
+.strip-legend { display: flex; justify-content: space-between; margin: 8px 0 0; font-size: .75rem; color: var(--text-mute); }
+
 @media (max-width: 900px) {
-  main { width: calc(100% - 28px); }
+  main { width: calc(100% - 32px); }
   #limits { grid-template-columns: 1fr; }
   .logs { grid-template-columns: 1fr; }
   .readouts { grid-template-columns: 1fr 1fr; }
-  .rebate-perf { display: none; }
-  .wedge { height: 42px; }
+}
+
+@media (max-width: 480px) {
+  .topbar { padding: 12px 16px; }
+  .readouts { grid-template-columns: 1fr; }
 }

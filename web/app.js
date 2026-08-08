@@ -214,31 +214,30 @@ function renderWedge(window, origin) {
   return group;
 }
 
-function renderLimitSheet(limits) {
-  const sheet = element("section", "sheet");
-  if (limits.origin !== "live") sheet.classList.add("is-estimated");
+function renderLimitCard(limits) {
+  const card = element("section", "card");
 
-  const head = element("header", "sheet-head");
+  const head = element("header", "card-head");
   const chip = originChip(limits);
   head.append(element("h2", null, agentName(limits.source)), element("span", `origin-chip ${chip.className}`.trim(), chip.text));
-  sheet.append(head);
+  card.append(head);
 
   const wedges = element("div", "wedges");
   wedges.append(...limits.windows.map((window) => renderWedge(window, limits.origin)));
-  sheet.append(wedges);
+  card.append(wedges);
 
-  if (limits.message) sheet.append(element("p", "wedge-note", limits.message));
-  return sheet;
+  if (limits.message) card.append(element("p", "wedge-note", limits.message));
+  return card;
 }
 
 // Limits are the reason this page exists, so a failure says what happened and
 // what to do rather than leaving the history as the first thing on screen.
 function renderLimitFailure(message) {
-  const sheet = element("section", "sheet is-estimated");
-  const head = element("header", "sheet-head");
+  const card = element("section", "card");
+  const head = element("header", "card-head");
   head.append(element("h2", null, "Usage limits"), element("span", "origin-chip unavailable", "no reading"));
-  sheet.append(head, element("p", "wedge-note", message));
-  limitsNode.replaceChildren(sheet);
+  card.append(head, element("p", "wedge-note", message));
+  limitsNode.replaceChildren(card);
   limitsNode.hidden = false;
 }
 
@@ -272,7 +271,7 @@ function renderLimits(data) {
   if (data.sources.length === 0) {
     renderLimitFailure("No agent reported a limit. Run agentmeter scan, or turn on live readings.");
   } else {
-    limitsNode.replaceChildren(...data.sources.map(renderLimitSheet));
+    limitsNode.replaceChildren(...data.sources.map(renderLimitCard));
     limitsNode.hidden = false;
   }
   // The develop animation belongs to arriving at the page, not to every poll.
@@ -300,7 +299,7 @@ async function setLive(enabled, control) {
       body: JSON.stringify({ enabled }),
     });
     if (!response.ok) throw new Error("request failed");
-    // The server replies with the report the switch produced, so the sheets
+    // The server replies with the report the switch produced, so the cards
     // show the consequence rather than an optimistic guess.
     const data = await response.json();
     renderLimits(data);

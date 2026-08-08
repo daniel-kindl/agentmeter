@@ -10,43 +10,23 @@
   </head>
   <body>
     <!--
-      THESIS: headroom is read as light, not as a filled bar. This surface refuses the
-      dev-dashboard arrangement of wordmark, stat cards, line chart; the limits are the page.
-      OWN-WORLD: a darkroom under safelight. Warm near-black ground, photographic paper as the
-      only bright field, one amber safelight accent, film-rebate edge strips carrying labels,
-      grain over everything, calibrated step wedges as the measuring instrument.
-      STORY: the visitor glances from two metres, sees how much unexposed paper is left, and
-      knows whether to start the next task.
-      FIRST VIEWPORT: rebate strip across the top; beneath it the limit sheets at full width,
-      each window a step wedge with a two-digit density number and its reset time. History,
-      cost and tables sit below.
-      FORM: darkroom densitometry, candidate 6 of the grounded list, seed key 053bf233.
-      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
-      review, the verdict, and DESIGN.md
+      This page is read from about two metres, on a second monitor, by someone whose hands are
+      busy elsewhere. It answers one question without being touched: how much headroom is left,
+      and when does it come back. The limits open the page at full width; history, cost and the
+      per-agent tables sit below them as reference.
+      Everything else follows from that distance. Plain neutral dark surfaces, one step of
+      elevation, hairlines instead of shadow, sentence-case labels at readable sizes, and the
+      percentage as the only large element. Colour is spent on status, never on decoration.
     -->
-    <div class="rebate" role="banner">
-      <span class="rebate-mark">AGENTMETER</span>
-      <span class="rebate-perf" aria-hidden="true"></span>
-      <span id="timezone" class="rebate-zone"></span>
-      <span class="rebate-perf" aria-hidden="true"></span>
-      <span id="live-mount" class="rebate-lamp"></span>
-    </div>
+    <header class="topbar">
+      <span class="topbar-mark">agentmeter</span>
+      <span id="timezone" class="topbar-zone"></span>
+      <span id="live-mount"></span>
+    </header>
     <main>
       <section id="limits" aria-label="Usage limits" hidden></section>
       <p id="status" role="status">Reading local session logs…</p>
       <section id="dashboard" hidden>
-        <section class="sheet strip-sheet">
-          <header class="sheet-head">
-            <h2>Exposure history</h2>
-            <nav aria-label="Usage range">
-              <button data-range="7d">7d</button>
-              <button data-range="30d" class="active">30d</button>
-              <button data-range="all">All</button>
-            </nav>
-          </header>
-          <div id="chart" class="teststrip" role="img" aria-label="Daily token usage as a density strip"></div>
-          <p class="strip-legend"><span>lighter, less used</span><span>denser, more used</span></p>
-        </section>
         <dl class="readouts" aria-label="Usage totals">
           <div><dt>Input</dt><dd id="input-total">—</dd></div>
           <div><dt>Output</dt><dd id="output-total">—</dd></div>
@@ -54,15 +34,29 @@
           <div><dt>Cost</dt><dd id="cost-total">—</dd></div>
         </dl>
         <p id="pricing-warning" class="notice" hidden></p>
-        <div class="logs">
-          <section class="sheet">
-            <header class="sheet-head"><h2>By agent</h2></header>
-            <table><thead><tr><th>Source</th><th>Tokens</th><th>Cost</th></tr></thead><tbody id="source-rows"></tbody></table>
+        <div class="stack">
+          <section class="card">
+            <header class="card-head">
+              <h2>Daily usage</h2>
+              <nav aria-label="Usage range">
+                <button data-range="7d">7d</button>
+                <button data-range="30d" class="active">30d</button>
+                <button data-range="all">All</button>
+              </nav>
+            </header>
+            <div id="chart" class="teststrip" role="img" aria-label="Daily token usage"></div>
+            <p class="strip-legend"><span>less used</span><span>more used</span></p>
           </section>
-          <section class="sheet">
-            <header class="sheet-head"><h2>By model</h2></header>
-            <table><thead><tr><th>Model</th><th>Tokens</th><th>Cost</th></tr></thead><tbody id="model-rows"></tbody></table>
-          </section>
+          <div class="logs">
+            <section class="card">
+              <header class="card-head"><h2>By agent</h2></header>
+              <table><thead><tr><th>Source</th><th>Tokens</th><th>Cost</th></tr></thead><tbody id="source-rows"></tbody></table>
+            </section>
+            <section class="card">
+              <header class="card-head"><h2>By model</h2></header>
+              <table><thead><tr><th>Model</th><th>Tokens</th><th>Cost</th></tr></thead><tbody id="model-rows"></tbody></table>
+            </section>
+          </div>
         </div>
       </section>
     </main>
