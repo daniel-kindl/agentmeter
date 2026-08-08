@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-08T00:00:00Z",
+  "title": "Design System: agentmeter",
+  "extensions": {
+    "colorMeta": {
+      "safelight": {
+        "role": "primary",
+        "displayName": "Safelight Amber",
+        "canonical": "#ff9a3c",
+        "tonalRamp": ["#2b1403", "#4a2308", "#6b3d16", "#8f5316", "#b96f1f", "#e08a2d", "#ff9a3c", "#ffc48c"]
+      },
+      "safelight-dim": {
+        "role": "primary",
+        "displayName": "Safelight At Rest",
+        "canonical": "#6b3d16",
+        "tonalRamp": ["#1c0f05", "#2e1808", "#42220b", "#57300f", "#6b3d16", "#8d5622", "#b0723a", "#d59a63"]
+      },
+      "caution-ink": {
+        "role": "secondary",
+        "displayName": "Caution Gold",
+        "canonical": "#e0c07a",
+        "tonalRamp": ["#1b1409", "#2b2110", "#3f3117", "#5c4a1e", "#8a6f2c", "#b3943f", "#e0c07a", "#f2d68f"]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Darkroom Ground",
+        "canonical": "#0b0806",
+        "tonalRamp": ["#0b0806", "#14100c", "#1e1811", "#2a2018", "#3d3024", "#584636", "#7d6650", "#a68a6e"]
+      },
+      "chassis": {
+        "role": "neutral",
+        "displayName": "Chassis",
+        "canonical": "#14100c",
+        "tonalRamp": ["#0b0806", "#14100c", "#1c1610", "#2a2018", "#3a2d21", "#51402f", "#6e5842", "#8f7458"]
+      },
+      "edge": {
+        "role": "neutral",
+        "displayName": "Rebate Edge",
+        "canonical": "#2a2018",
+        "tonalRamp": ["#100c08", "#1a1410", "#2a2018", "#3b2d21", "#4f3d2c", "#68523c", "#856a4f", "#a68765"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Photographic Paper",
+        "canonical": "#ece2d0",
+        "tonalRamp": ["#3a3125", "#544838", "#6f604b", "#8b7a60", "#a89676", "#c2b193", "#d8cbb2", "#ece2d0"]
+      },
+      "paper-dim": {
+        "role": "neutral",
+        "displayName": "Paper Dim",
+        "canonical": "#b9ab94",
+        "tonalRamp": ["#2f281f", "#463c2e", "#5f523f", "#7a6a52", "#958366", "#b9ab94", "#d0c4af", "#e6ddcc"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#f2ebdd",
+        "tonalRamp": ["#3d372c", "#57503f", "#726853", "#8e8368", "#aa9e80", "#c6bb9e", "#dcd4bf", "#f2ebdd"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Label",
+        "canonical": "#9a8b76",
+        "tonalRamp": ["#241f19", "#372f26", "#4c4235", "#635646", "#7d6d59", "#9a8b76", "#b7ab99", "#d4cbbd"]
+      },
+      "exposed": {
+        "role": "neutral",
+        "displayName": "Exposed",
+        "canonical": "#0a0705",
+        "tonalRamp": ["#0a0705", "#120d09", "#1b140e", "#261c14", "#33261b", "#443324", "#5a4430", "#75593f"]
+      }
+    },
+    "typographyMeta": {
+      "density": { "displayName": "Density", "purpose": "The two-digit limit percentage beside each wedge. The only large type in the system." },
+      "readout": { "displayName": "Readout", "purpose": "The four aggregate totals: input, output, cache read, cost." },
+      "section-label": { "displayName": "Section Label", "purpose": "Every h2. Headings are labels, not headlines." },
+      "rebate-label": { "displayName": "Rebate Label", "purpose": "Film-rebate markings in the top strip; widest tracking in the system." },
+      "control-label": { "displayName": "Control Label", "purpose": "Range buttons, lamps, chips, strip legend." },
+      "figure": { "displayName": "Figure", "purpose": "Table cells and measured values embedded in prose." },
+      "body": { "displayName": "Body", "purpose": "Notices, wedge notes, status text. The only sans role." }
+    },
+    "shadows": [
+      { "name": "patch-rim", "value": "inset 0 0 0 1px rgb(10 7 5 / .35)", "purpose": "Boundary between adjacent wedge patches so a ten-step ramp stays countable." },
+      { "name": "patch-rim-exposed", "value": "inset 0 0 0 1px rgb(255 231 199 / .07)", "purpose": "Rim on a consumed patch; keeps exposed tone separated from the frame." },
+      { "name": "cell-rim", "value": "inset 0 0 0 1px rgb(255 231 199 / .08)", "purpose": "Rim on each history test-strip cell." },
+      { "name": "wet-edge", "value": "inset 0 0 0 1px rgb(255 154 60 / .55), 0 0 11px -2px rgb(255 154 60 / .7)", "purpose": "The single patch currently mid-exposure." },
+      { "name": "critical-frame", "value": "0 0 0 1px rgb(255 154 60 / .5), 0 0 26px -6px rgb(255 154 60 / .55)", "purpose": "Live reading at or above 90; the only whole-component glow." },
+      { "name": "lamp-bloom", "value": "0 0 9px 1px rgb(255 154 60 / .85)", "purpose": "The lit safelight dot on an engaged lamp." }
+    ],
+    "motion": [
+      { "name": "develop", "value": "@keyframes develop { from { opacity: 0; filter: brightness(.35); } to { opacity: 1; filter: none; } }", "purpose": "The print coming up in the tray. Plays once on first mount only." },
+      { "name": "develop-timing", "value": ".9s cubic-bezier(.16, 1, .3, 1) both", "purpose": "Duration and easing for the develop keyframe; gated off by the is-settled class." },
+      { "name": "reduced-motion", "value": "@media (prefers-reduced-motion: reduce) { animation: none }", "purpose": "The develop animation is removed entirely, not shortened." }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "900px" }
+    ],
+    "grain": {
+      "name": "surface-grain",
+      "value": "position: fixed; inset: 0; z-index: 100; pointer-events: none; opacity: .38; background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='.5'/%3E%3C/svg%3E\")",
+      "purpose": "Full-surface photographic grain on body::after. Stops the dark ground reading as an empty void at a glancing distance."
+    }
+  },
+  "components": [
+    {
+      "name": "Step Wedge",
+      "kind": "custom",
+      "refersTo": "wedge",
+      "description": "The limit meter: ten patches whose tone is fixed by position, blackened from the left by usage, with the mid-exposure patch carrying the safelight edge.",
+      "html": "<div class=\"ds-wedge-row\"><div class=\"ds-wedge\"><div class=\"ds-step ds-exposed\"></div><div class=\"ds-step ds-exposed\"></div><div class=\"ds-step ds-exposed\"></div><div class=\"ds-step ds-edge\" style=\"background:linear-gradient(90deg,#0a0705 40%,hsl(34 22% 65%) 40%)\"></div><div class=\"ds-step\" style=\"background:hsl(34 22% 70%)\"></div><div class=\"ds-step\" style=\"background:hsl(34 22% 75%)\"></div><div class=\"ds-step\" style=\"background:hsl(34 22% 80%)\"></div><div class=\"ds-step\" style=\"background:hsl(34 22% 85%)\"></div><div class=\"ds-step\" style=\"background:hsl(34 22% 90%)\"></div><div class=\"ds-step\" style=\"background:hsl(34 22% 94%)\"></div></div><div class=\"ds-wedge-value\">34<span>%</span></div></div>",
+      "css": ".ds-wedge-row { display: flex; align-items: center; gap: 18px; } .ds-wedge { display: flex; gap: 2px; flex: 1; height: 52px; padding: 3px; border: 1px solid #2a2018; border-radius: 2px; background: #070504; } .ds-step { flex: 1; border-radius: 1px; box-shadow: inset 0 0 0 1px rgb(10 7 5 / .35); } .ds-step.ds-exposed { background: #0a0705; box-shadow: inset 0 0 0 1px rgb(255 231 199 / .07); } .ds-step.ds-edge { box-shadow: inset 0 0 0 1px rgb(255 154 60 / .55), 0 0 11px -2px rgb(255 154 60 / .7); } .ds-wedge-value { min-width: 3.6ch; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: clamp(2.1rem, 4vw, 3rem); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.04em; text-align: right; color: #f2ebdd; } .ds-wedge-value span { font-size: .42em; letter-spacing: .08em; color: #9a8b76; }"
+    },
+    {
+      "name": "Test Strip",
+      "kind": "custom",
+      "refersTo": "teststrip",
+      "description": "Daily history as one exposure per day, read by density rather than by bar height. Idle days are filled in so the strip does not misreport time.",
+      "html": "<div class=\"ds-teststrip\"><div style=\"--cell:hsl(34 22% 88%)\"></div><div style=\"--cell:hsl(34 22% 74%)\"></div><div style=\"--cell:hsl(34 22% 90%)\"></div><div style=\"--cell:hsl(34 22% 42%)\"></div><div style=\"--cell:hsl(34 22% 55%)\"></div><div style=\"--cell:hsl(34 22% 30%)\"></div><div style=\"--cell:hsl(34 22% 66%)\"></div><div style=\"--cell:hsl(34 22% 82%)\"></div></div><p class=\"ds-strip-legend\"><span>lighter, less used</span><span>denser, more used</span></p>",
+      "css": ".ds-teststrip { display: flex; gap: 2px; height: 88px; } .ds-teststrip div { flex: 1; min-width: 3px; border-radius: 1px; background: var(--cell, #ece2d0); box-shadow: inset 0 0 0 1px rgb(255 231 199 / .08); } .ds-strip-legend { display: flex; justify-content: space-between; margin: 9px 0 0; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: #9a8b76; }"
+    },
+    {
+      "name": "Sheet",
+      "kind": "card",
+      "refersTo": "sheet",
+      "description": "The primary container. Flat chassis panel with a hairline edge; goes dashed when the data inside it is estimated rather than measured.",
+      "html": "<section class=\"ds-sheet\"><header class=\"ds-sheet-head\"><h2 class=\"ds-h2\">Exposure history</h2><span class=\"ds-chip ds-chip-live\">live</span></header></section>",
+      "css": ".ds-sheet { padding: 20px 22px 22px; border: 1px solid #2a2018; border-radius: 3px; background: #14100c; color: #f2ebdd; } .ds-sheet.ds-estimated { border-style: dashed; } .ds-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 4px; } .ds-h2 { margin: 0; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: .72rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: #9a8b76; } .ds-chip { padding: 5px 11px; border: 1px solid #2a2018; border-radius: 2px; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: .74rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: #b9ab94; } .ds-chip-live { border-color: #6b3d16; color: #d99a55; }"
+    },
+    {
+      "name": "Range Button",
+      "kind": "nav",
+      "refersTo": "range-button",
+      "description": "The only navigation on the surface. Ghost at rest, text-only hover, safelight border when active.",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-btn\">7d</button><button class=\"ds-btn ds-active\">30d</button><button class=\"ds-btn\">All</button></nav>",
+      "css": ".ds-nav { display: flex; gap: 2px; } .ds-btn { border: 1px solid transparent; border-radius: 2px; padding: 5px 10px; background: transparent; color: #9a8b76; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; } .ds-btn:hover { color: #ece2d0; } .ds-btn.ds-active { border-color: #6b3d16; color: #ff9a3c; } .ds-btn:focus-visible { outline: 2px solid #ff9a3c; outline-offset: 2px; }"
+    },
+    {
+      "name": "Safelight Lamp",
+      "kind": "input",
+      "refersTo": "lamp",
+      "description": "The live-readings switch, drawn as a safelight rather than a checkbox. The native input is visually hidden; every state is carried by :has() on the label.",
+      "html": "<label class=\"ds-lamp\"><input type=\"checkbox\" checked>live readings</label>",
+      "css": ".ds-lamp { display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px 5px 8px; border: 1px solid #2a2018; border-radius: 2px; background: #0d0906; color: #9a8b76; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: .64rem; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; } .ds-lamp::before { content: \"\"; width: 8px; height: 8px; border-radius: 50%; background: #6b3d16; } .ds-lamp input { position: absolute; opacity: 0; width: 0; height: 0; } .ds-lamp:has(input:checked) { border-color: #6b3d16; color: #ff9a3c; } .ds-lamp:has(input:checked)::before { background: #ff9a3c; box-shadow: 0 0 9px 1px rgb(255 154 60 / .85); } .ds-lamp:has(input:focus-visible) { outline: 2px solid #ff9a3c; outline-offset: 2px; } .ds-lamp:has(input:disabled) { opacity: .5; cursor: progress; }"
+    },
+    {
+      "name": "Origin Chip",
+      "kind": "chip",
+      "refersTo": "origin-chip",
+      "description": "A one-word statement of where a reading came from: live, stale, uncalibrated, or no reading. Provenance is never signalled by color alone.",
+      "html": "<span class=\"ds-chip\">uncalibrated</span> <span class=\"ds-chip ds-chip-live\">live</span> <span class=\"ds-chip ds-chip-stale\">stale</span>",
+      "css": ".ds-chip { padding: 5px 11px; border: 1px solid #2a2018; border-radius: 2px; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: .74rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: #b9ab94; } .ds-chip-live { border-color: #6b3d16; color: #d99a55; } .ds-chip-stale { border-color: #8a6f2c; background: #241c0d; color: #f2d68f; }"
+    },
+    {
+      "name": "Rebate Strip",
+      "kind": "nav",
+      "refersTo": "rebate",
+      "description": "The film-rebate header. It replaces a masthead: a wordmark at display size would eat the viewport the limits need. Sprocket perforations are drawn, and are dropped below 900px.",
+      "html": "<div class=\"ds-rebate\"><span class=\"ds-rebate-mark\">AGENTMETER</span><span class=\"ds-rebate-perf\"></span><span class=\"ds-rebate-zone\">Europe/Prague</span><span class=\"ds-rebate-perf\"></span></div>",
+      "css": ".ds-rebate { display: flex; align-items: center; gap: 14px; padding: 9px 22px; border-bottom: 1px solid #2a2018; background: linear-gradient(180deg, #191309, #100c08); font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: .68rem; letter-spacing: .22em; color: #ff9a3c; text-transform: uppercase; } .ds-rebate-mark { font-weight: 600; } .ds-rebate-zone { color: #9a8b76; letter-spacing: .14em; } .ds-rebate-perf { flex: 1; height: 11px; background-image: repeating-linear-gradient(90deg, #0b0806 0 9px, transparent 9px 22px); -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); opacity: .5; }"
+    },
+    {
+      "name": "Readout Row",
+      "kind": "custom",
+      "refersTo": "readouts",
+      "description": "Four aggregate totals seamed with 1px gaps that show the border color through. Folds to 2x2 below 900px.",
+      "html": "<dl class=\"ds-readouts\"><div><dt>Input</dt><dd>1.24M</dd></div><div><dt>Output</dt><dd>318K</dd></div><div><dt>Cache read</dt><dd>9.7M</dd></div><div><dt>Cost</dt><dd>$41.02</dd></div></dl>",
+      "css": ".ds-readouts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 0; padding: 0; background: #2a2018; border: 1px solid #2a2018; border-radius: 3px; } .ds-readouts div { padding: 18px 20px; background: #14100c; } .ds-readouts dt { font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: .64rem; letter-spacing: .18em; text-transform: uppercase; color: #9a8b76; } .ds-readouts dd { margin: 9px 0 0; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: clamp(1.15rem, 2.4vw, 1.6rem); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; color: #f2ebdd; }"
+    },
+    {
+      "name": "Caution Notice",
+      "kind": "custom",
+      "refersTo": "notice",
+      "description": "The system admitting a gap in its own data — unpriced models, a lamp error. Deliberately desaturated so it never competes with a real reading.",
+      "html": "<p class=\"ds-notice\">Cost excludes 3 models with no published pricing.</p>",
+      "css": ".ds-notice { margin: 0; padding: 12px 15px; border: 1px solid #5c4a1e; border-radius: 3px; background: #1b1409; color: #e0c07a; font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif; font-size: .8rem; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Darkroom Under Safelight",
+    "overview": "The surface is a print room at working temperature: a warm near-black ground, one amber safelight, and photographic paper as the only bright material on screen. Nothing here is a dev dashboard. There is no wordmark at display size, no stat-card grid, no line chart. The limits are the page: they open the first viewport at full width and everything else — history, cost, per-agent tables — sits below the fold as reference.\n\nThe thesis is that headroom reads as light. A filled progress bar tells you how much you have spent; a sheet of paper tells you how much is left to expose. The meter is therefore a calibrated step tablet of ten patches whose tone is fixed by position and never by the value, blackened from the left as usage consumes it. The reading is which patch is the last light one, and that is legible from two metres with both hands busy — the confirmed use scene is a second monitor, running for hours, self-refreshing.\n\nDensity is instrument density, not marketing density. Type is small, letterspaced, and almost entirely monospaced; the two-digit percentage is the only thing allowed to be large. Grain lies over the whole surface at low opacity so the dark ground reads as material rather than as an empty void. Depth is drawn with hairline edges and tonal steps between ground, chassis and paper — not with shadow.",
+    "keyCharacteristics": [
+      "Warm near-black ground; paper is the only bright field.",
+      "One accent — amber safelight — and it only ever means live, active, or at the limit.",
+      "Ten-patch step tablet with fixed graduation; exposure eats it from the left.",
+      "Mono for every measured value, with tabular numerals; sans for prose only.",
+      "Full-surface film grain; hairline borders; radii of 1–3px.",
+      "One authored motion moment, on first mount only."
+    ],
+    "rules": [
+      { "name": "The One Safelight Rule", "body": "There is one accent hue. If a new element wants a color, it gets muted, paper-dim, or nothing. Amber is spent only on live, active, focused, or at the limit.", "section": "colors" },
+      { "name": "The Fixed Graduation Rule", "body": "The wedge's paper tones (hsl(34 22% 52%) at the exposed end to hsl(34 22% 94%) at the fresh end) are a function of patch position, never of the value. A scale that moves with its reading is not a scale.", "section": "colors" },
+      { "name": "The Provenance Rule", "body": "Alarm color belongs to measured readings only. A derived estimate never turns amber and never turns white — it goes dashed, drops to paper-dim, and labels itself uncalibrated. This is a product constraint from PRODUCT.md before it is a visual one.", "section": "colors" },
+      { "name": "The Mono-Is-Measurement Rule", "body": "Every percentage, token count, cost, reset time, table figure and label is set in Plex Mono with tabular-nums. Sans is for sentences only. When prose contains a measured value, that segment switches to mono mid-sentence so the figure lines up with the instrument above it.", "section": "typography" },
+      { "name": "The Label-Not-Headline Rule", "body": "No type between 0.84rem and 2.1rem exists. A surface either whispers at label scale or states a reading at density scale; there is no middle voice.", "section": "typography" },
+      { "name": "The Limits-Are-The-Page Rule", "body": "The first viewport is the rebate strip and the limit sheets. Nothing — no wordmark block, no summary cards, no chart — may be inserted above them.", "section": "layout" },
+      { "name": "The Emission Rule", "body": "Shadows are glow, not drop. If an element is not emitting safelight, it gets a border and no shadow.", "section": "elevation" },
+      { "name": "The Print-Comes-Up-Once Rule", "body": "Motion belongs to arriving at the page. A refresh is not an arrival, and nothing on this surface may animate on a poll.", "section": "components" }
+    ],
+    "dos": [
+      "Do put every measured value in IBM Plex Mono with font-variant-numeric: tabular-nums, including values embedded mid-sentence.",
+      "Do express any new meter as a fixed graduation that gets consumed, not as a fill that grows.",
+      "Do reserve safelight amber for live, active, focused, and at-limit states.",
+      "Do mark an instrument that is not measuring with a dashed 1px border and a word — never with color alone.",
+      "Do keep new panels flat: chassis fill, 1px edge border, 3px radius, no shadow.",
+      "Do give every focusable element the same 2px solid safelight ring at 2px offset.",
+      "Do design for a two-metre glance first: if a new element cannot be read from across the room, it belongs below the fold."
+    ],
+    "donts": [
+      "Don't introduce a second accent hue. Caution gold is for the system's own data gaps and is not available as decoration.",
+      "Don't apply warn or critical styling to a derived estimate; a thin baseline hitting 100% is an artefact, and coloring it is the page telling a lie.",
+      "Don't animate anything on the refresh poll.",
+      "Don't use drop shadows for elevation; depth is tonal, and glow means emission.",
+      "Don't add a display-scale wordmark or a masthead block above the limits.",
+      "Don't add a line or bar chart to this surface; history is read as density.",
+      "Don't fetch a font, script or stylesheet from a CDN — the three files are served verbatim from the Go binary's embedded filesystem, with no build step and no framework.",
+      "Don't exceed the four shipped font files (Sans 400/600, Mono 400/600), and don't use italics."
+    ]
+  }
+}

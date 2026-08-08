@@ -142,9 +142,10 @@ h2 {
 
 .wedge-row { display: flex; align-items: center; gap: 18px; margin-top: 10px; }
 
-/* A step tablet, not a filled track. Twenty discrete patches carry a fixed
-   graduation that does not move with the value; exposure blackens them from the
-   left, and the reading is which patch is the last light one. */
+/* A step tablet, not a filled track. Discrete patches carry a fixed graduation
+   that does not move with the value; exposure blackens them from the left, and
+   the reading is which patch is the last light one. The patch count and the
+   tone of each live in renderStrip, which is the one place that decides them. */
 .wedge {
   display: flex;
   gap: 2px;

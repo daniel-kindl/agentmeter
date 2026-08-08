@@ -7,3 +7,6 @@
 *.jsonl
 !testdata/synthetic/**/*.jsonl
 
+
+# Impeccable hook cache is per-machine state, not a project artifact.
+/.impeccable/hook.cache.json

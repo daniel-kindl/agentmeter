@@ -181,11 +181,14 @@ function renderWedge(window, origin) {
 
   const head = element("div", "wedge-head");
   head.append(element("span", "wedge-name", window.label));
-  // The reset slot always renders. An idle agent has no block open, and
-  // dropping the line entirely loses half of what the row promises to say.
+  // The reset slot always renders. Dropping the line loses half of what the row
+  // promises to say, but the two ways a window can lack a reset are not the
+  // same thing: a five-hour block has none because nothing is open, while a
+  // derived weekly window has none because its real reset instant is not
+  // knowable offline. Saying "no block open" for both would misdescribe one.
   head.append(window.resets_at
     ? element("span", "wedge-reset", `resets ${formatReset(window.resets_at)}`)
-    : element("span", "wedge-reset is-idle", "no block open"));
+    : element("span", "wedge-reset is-idle", window.kind === "5h" ? "no block open" : "no fixed reset"));
   group.append(head);
 
   const row = element("div", "wedge-row");
